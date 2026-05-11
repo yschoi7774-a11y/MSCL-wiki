@@ -243,4 +243,12 @@ app.get('/search', (req, res) => {
   res.render('search', { sidebar, currentPage: '__search__', q, results });
 });
 
+app.get('/api/status', (req, res) => {
+  res.json({
+    version: '2026-05-11-v5',
+    hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+    wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
+  });
+});
+
 app.listen(PORT, () => console.log(`MSCL 위키 서버 실행 중: http://localhost:${PORT}`));
