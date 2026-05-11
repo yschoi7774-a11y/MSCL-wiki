@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>검색 — MSCL 위키</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <a href="/wiki/index" class="logo">📚 MSCL 지식 위키</a>
+    <div class="header-right">
+      <a href="/graph" class="header-btn">그래프</a>
+      <form action="/search" method="get" class="search-form">
+        <input name="q" value="<%= q %>" placeholder="검색…" autocomplete="off" autofocus>
+      </form>
+    </div>
+  </header>
+  <div class="container">
+    <nav class="sidebar">
+      <% sidebar.forEach(cat => { %>
+        <div class="sidebar-category">
+          <h3><%= cat.name %></h3>
+          <% cat.pages.forEach(page => { %>
+            <a href="/wiki/<%= encodeURIComponent(page.name) %>" class="sidebar-link"><%= page.name %></a>
+          <% }) %>
+        </div>
+      <% }) %>
+    </nav>
+    <main class="content">
+      <% if (q) { %>
+        <h1>검색: "<%= q %>"</h1>
+        <% if (results.length === 0) { %>
+          <p class="not-found">검색 결과가 없습니다.</p>
+        <% } else { %>
+          <p class="search-count"><%= results.length %>개 페이지에서 찾았습니다.</p>
+          <div class="search-results">
+            <% results.forEach(r => { %>
+              <div class="search-item">
+                <a href="/wiki/<%= encodeURIComponent(r.name) %>" class="search-title"><%= r.name %></a>
+                <p class="search-snippet"><%- r.snippet %></p>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } else { %>
+        <h1>검색</h1>
+        <p>위 검색창에 키워드를 입력하세요.</p>
+      <% } %>
+    </main>
+  </div>
+</body>
+</html>

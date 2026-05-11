@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>그래프 뷰 — MSCL 위키</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    #graph-container { width: 100%; height: calc(100vh - 52px); background: #0f0f1a; position: relative; }
+    #graph-svg { width: 100%; height: 100%; }
+    #tooltip {
+      position: absolute; background: rgba(30,30,50,0.95); color: #e8e8f0;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px;
+      pointer-events: none; display: none; border: 1px solid #4a6fa5;
+      max-width: 220px;
+    }
+    #tooltip .tip-title { font-weight: 700; margin-bottom: 2px; }
+    #tooltip .tip-cat { font-size: 11px; color: #888; }
+    #graph-legend {
+      position: absolute; bottom: 24px; left: 24px;
+      background: rgba(20,20,40,0.9); border-radius: 10px;
+      padding: 12px 16px; color: #ccc; font-size: 12px;
+    }
+    #graph-legend h4 { color: #e8e8f0; margin-bottom: 8px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    #graph-hint {
+      position: absolute; top: 16px; right: 16px;
+      color: #555; font-size: 12px; text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/wiki/index" class="logo">📚 MSCL 지식 위키</a>
+    <div class="header-right">
+      <a href="/graph" class="header-btn active">그래프</a>
+      <form action="/search" method="get" class="search-form">
+        <input name="q" placeholder="검색…" autocomplete="off">
+      </form>
+    </div>
+  </header>
+
+  <div id="graph-container">
+    <svg id="graph-svg"></svg>
+    <div id="tooltip">
+      <div class="tip-title"></div>
+      <div class="tip-cat"></div>
+    </div>
+    <div id="graph-hint">드래그로 이동 · 스크롤로 확대 · 클릭으로 페이지 열기</div>
+    <div id="graph-legend">
+      <h4>카테고리</h4>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script>
+    const COLORS = {
+      '규정·정책': '#ef5350',
+      '매뉴얼·절차': '#42a5f5',
+      '교육·학습': '#66bb6a',
+      '제품': '#ffa726',
+      '프로젝트': '#ab47bc',
+      '아이디어': '#26c6da',
+      '업계·시장': '#8d6e63',
+      '기타': '#78909c'
+    };
+
+    // Legend
+    const legend = document.getElementById('graph-legend');
+    Object.entries(COLORS).forEach(([cat, color]) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<div class="legend-dot" style="background:${color}"></div><span>${cat}</span>`;
+      legend.appendChild(item);
+    });
+
+    const tooltip = document.getElementById('tooltip');
+    const svg = d3.select('#graph-svg');
+    const container = document.getElementById('graph-container');
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    const g = svg.append('g');
+
+    svg.call(d3.zoom().scaleExtent([0.3, 4]).on('zoom', e => g.attr('transform', e.transform)));
+
+    fetch('/api/graph').then(r => r.json()).then(data => {
+      const simulation = d3.forceSimulation(data.nodes)
+        .force('link', d3.forceLink(data.links).id(d => d.id).distance(120))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide(40));
+
+      const link = g.append('g')
+        .selectAll('line')
+        .data(data.links)
+        .join('line')
+        .attr('stroke', '#2a2a4a')
+        .attr('stroke-width', 1.5);
+
+      const node = g.append('g')
+        .selectAll('g')
+        .data(data.nodes)
+        .join('g')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+          .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+          .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        )
+        .on('click', (e, d) => { window.location.href = `/wiki/${encodeURIComponent(d.id)}`; })
+        .on('mouseover', (e, d) => {
+          tooltip.style.display = 'block';
+          tooltip.querySelector('.tip-title').textContent = d.id;
+          tooltip.querySelector('.tip-cat').textContent = d.category;
+        })
+        .on('mousemove', e => {
+          tooltip.style.left = (e.offsetX + 14) + 'px';
+          tooltip.style.top = (e.offsetY - 10) + 'px';
+        })
+        .on('mouseout', () => { tooltip.style.display = 'none'; });
+
+      node.append('circle')
+        .attr('r', 18)
+        .attr('fill', d => COLORS[d.category] || COLORS['기타'])
+        .attr('fill-opacity', 0.85)
+        .attr('stroke', '#0f0f1a')
+        .attr('stroke-width', 2);
+
+      node.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', 32)
+        .attr('fill', '#ccc')
+        .attr('font-size', 11)
+        .text(d => d.id.length > 10 ? d.id.slice(0, 10) + '…' : d.id);
+
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+    });
+  </script>
+</body>
+</html>
