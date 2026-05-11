@@ -282,9 +282,8 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const tab = btn.dataset.tab;
-        document.getElementById('tab-category').style.display = tab === 'category' ? '' : 'none';
-        const graphEl = document.getElementById('tab-graph');
-        graphEl.style.display = tab === 'graph' ? '' : 'none';
+        document.getElementById('tab-category').style.display = tab === 'category' ? 'block' : 'none';
+        document.getElementById('tab-graph').style.display = tab === 'graph' ? 'block' : 'none';
 
         if (tab === 'graph' && !graphInited) {
           graphInited = true;
