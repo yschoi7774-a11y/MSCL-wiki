@@ -277,20 +277,35 @@
     let graphInited = false;
     let nodeSelection = null;
 
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      document.getElementById('tab-category').style.display = tab === 'category' ? 'block' : 'none';
+      document.getElementById('tab-graph').style.display    = tab === 'graph'    ? 'block' : 'none';
+      if (tab === 'graph' && !graphInited) {
+        graphInited = true;
+        setTimeout(initGraph, 100);
+      }
+    }
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
         const tab = btn.dataset.tab;
-        document.getElementById('tab-category').style.display = tab === 'category' ? 'block' : 'none';
-        document.getElementById('tab-graph').style.display = tab === 'graph' ? 'block' : 'none';
-
-        if (tab === 'graph' && !graphInited) {
-          graphInited = true;
-          setTimeout(initGraph, 100);
-        }
+        history.pushState({ tab }, '', `#${tab}`);
+        switchTab(tab);
       });
     });
+
+    // 뒤로/앞으로가기 시 탭 복원
+    window.addEventListener('popstate', e => {
+      const tab = (e.state && e.state.tab) || location.hash.replace('#', '') || 'category';
+      switchTab(tab);
+    });
+
+    // 페이지 로드 시 URL 해시로 탭 복원
+    const initTab = location.hash.replace('#', '') || 'category';
+    switchTab(initTab);
 
     // ── 검색 ──
     const searchInput  = document.getElementById('live-search');
