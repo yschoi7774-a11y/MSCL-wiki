@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
 const Anthropic = require('@anthropic-ai/sdk');
+const session = require('express-session');
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic()
@@ -11,6 +12,33 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 const app = express();
 const PORT = process.env.PORT || 3000;
 const WIKI_DIR = path.join(__dirname, 'wiki');
+
+// ── 인증 ──────────────────────────────────────────
+app.use(session({ secret: process.env.SESSION_SECRET || 'mscl-2026', resave: false, saveUninitialized: false, cookie: { maxAge: 7*24*60*60*1000 } }));
+app.use(express.urlencoded({ extended: false }));
+
+const LOGIN_HTML = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>로그인</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#f0f2f5;display:flex;align-items:center;justify-content:center;height:100vh}.box{background:#fff;border-radius:16px;padding:44px 40px;width:320px;box-shadow:0 4px 24px rgba(0,0,0,0.1)}h1{font-size:17px;color:#1a1a2e;margin-bottom:28px;text-align:center;font-weight:700}input{width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none;color:#222}input:focus{border-color:#4a6fa5}button{width:100%;padding:12px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}button:hover{background:#2a2a4e}.err{color:#e53935;font-size:13px;text-align:center;margin-top:14px}</style></head><body><div class="box"><h1>🔐 MSCL 지식 위키</h1><form method="POST" action="/login"><input type="text" name="id" placeholder="아이디" autofocus autocomplete="username"><input type="password" name="password" placeholder="비밀번호" autocomplete="current-password"><button type="submit">로그인</button>__ERR__</form></div></body></html>`;
+
+function requireAuth(req, res, next) {
+  if (req.path === '/login' || req.session.loggedIn) return next();
+  res.redirect('/login');
+}
+
+app.get('/login', (req, res) => {
+  if (req.session.loggedIn) return res.redirect('/');
+  res.send(LOGIN_HTML.replace('__ERR__', ''));
+});
+app.post('/login', (req, res) => {
+  if (req.body.id === 'mothersmile' && req.body.password === '0544') {
+    req.session.loggedIn = true; res.redirect('/');
+  } else {
+    res.send(LOGIN_HTML.replace('__ERR__', '<p class="err">아이디 또는 비밀번호가 틀렸습니다.</p>'));
+  }
+});
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+app.use(requireAuth);
+// ─────────────────────────────────────────────────
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
