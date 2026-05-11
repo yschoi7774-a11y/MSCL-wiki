@@ -116,6 +116,11 @@ function buildGraph() {
   const categoryMap = {};
   sidebar.forEach(cat => cat.pages.forEach(p => { categoryMap[p.name] = cat.name; }));
 
+  const newPagesPath = path.join(__dirname, 'new-pages.json');
+  const newSet = new Set(fs.existsSync(newPagesPath)
+    ? JSON.parse(fs.readFileSync(newPagesPath, 'utf-8'))
+    : []);
+
   const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md');
   const nodes = [];
   const links = [];
@@ -124,7 +129,7 @@ function buildGraph() {
   files.forEach(file => {
     const name = file.replace('.md', '');
     const content = fs.readFileSync(path.join(WIKI_DIR, file), 'utf-8');
-    nodes.push({ id: name, category: categoryMap[name] || '기타' });
+    nodes.push({ id: name, category: categoryMap[name] || '기타', isNew: newSet.has(name) });
     extractLinks(content).forEach(target => {
       if (pageSet.has(target) && target !== name) {
         links.push({ source: name, target });

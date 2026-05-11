@@ -464,15 +464,23 @@
           .on('mouseout', () => { tooltip.style.display = 'none'; });
 
         nodeSelection.append('circle')
-          .attr('r', 18)
+          .attr('r', d => d.isNew ? 21 : 18)
           .attr('fill',    d => COLORS[d.category] || COLORS['기타'])
           .attr('opacity', 0.85)
-          .attr('stroke', '#0f0f1a').attr('stroke-width', 2);
+          .attr('stroke', d => d.isNew ? '#ffffff' : '#0f0f1a')
+          .attr('stroke-width', d => d.isNew ? 2.5 : 2);
 
         nodeSelection.append('text')
-          .attr('text-anchor', 'middle').attr('dy', 32)
-          .attr('fill', '#ccc').attr('font-size', 11)
+          .attr('text-anchor', 'middle').attr('dy', d => d.isNew ? 36 : 32)
+          .attr('fill', d => d.isNew ? '#ffffff' : '#ccc')
+          .attr('font-size', d => d.isNew ? 12 : 11)
+          .attr('font-weight', d => d.isNew ? 'bold' : 'normal')
           .text(d => d.id.length > 10 ? d.id.slice(0, 10) + '…' : d.id);
+
+        nodeSelection.filter(d => d.isNew).append('text')
+          .attr('text-anchor', 'middle').attr('dy', -22)
+          .attr('fill', '#ffdd57').attr('font-size', 9).attr('font-weight', 'bold')
+          .text('NEW');
 
         sim.on('tick', () => {
           linkSel
