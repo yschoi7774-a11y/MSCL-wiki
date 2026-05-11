@@ -81,6 +81,37 @@
     .result-card .rc-snippet mark { background: #fff3a3; color: #333; border-radius: 2px; padding: 0 2px; }
     #no-results { color: #bbb; font-style: italic; text-align: center; padding: 32px 0; font-size: 14px; }
 
+    /* AI answer */
+    #ai-panel {
+      display: none;
+      max-width: 800px;
+      margin: 24px auto 0;
+      padding: 0 24px;
+    }
+    #ai-box {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid #3a3a5c;
+      border-radius: 14px;
+      padding: 20px 24px;
+      color: #e8e8f0;
+    }
+    #ai-box .ai-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #7a7aaa;
+      margin-bottom: 12px;
+    }
+    #ai-box .ai-header span { color: #6a8fd8; }
+    #ai-answer {
+      font-size: 14px; line-height: 1.75; color: #d8d8f0;
+      white-space: pre-wrap;
+    }
+    #ai-answer.loading { color: #555577; font-style: italic; }
+    #ai-source {
+      margin-top: 12px; font-size: 11px; color: #555577;
+      border-top: 1px solid #2a2a4a; padding-top: 10px;
+    }
+
     /* Category tab */
     #tab-category {
       max-width: 960px; margin: 0 auto; padding: 28px 24px;
@@ -148,6 +179,15 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="category">카테고리</button>
     <button class="tab-btn" data-tab="graph">그래프</button>
+  </div>
+
+  <!-- AI answer panel -->
+  <div id="ai-panel">
+    <div id="ai-box">
+      <div class="ai-header">✦ <span>AI 답변</span> — 위키 내용 기반</div>
+      <div id="ai-answer" class="loading">답변 생성 중…</div>
+      <div id="ai-source"></div>
+    </div>
   </div>
 
   <!-- Search results (shown above both tabs when searching) -->
@@ -234,6 +274,9 @@
     const resultsList = document.getElementById('search-results-list');
     const noResults = document.getElementById('no-results');
     const searchHeading = document.getElementById('search-heading');
+    const aiPanel = document.getElementById('ai-panel');
+    const aiAnswer = document.getElementById('ai-answer');
+    const aiSource = document.getElementById('ai-source');
     let searchTimer;
 
     searchInput.addEventListener('input', () => {
@@ -242,41 +285,72 @@
         const q = searchInput.value.trim();
         if (!q) {
           searchPanel.style.display = 'none';
+          aiPanel.style.display = 'none';
           resetDim();
           return;
         }
         runSearch(q);
-      }, 250);
+      }, 400);
+    });
+
+    // Enter 키로 즉시 실행
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        clearTimeout(searchTimer);
+        const q = searchInput.value.trim();
+        if (q) runSearch(q);
+      }
     });
 
     async function runSearch(q) {
-      // 카테고리 카드 dim
       applyCardDim(q);
-      // 그래프 노드 dim
       applyNodeDim(q);
-      // 전문 검색 결과 패널
+
+      // 키워드 검색 결과
       searchPanel.style.display = 'block';
-      searchHeading.textContent = `"${q}" 검색 중…`;
+      searchHeading.textContent = `검색 중…`;
       resultsList.innerHTML = '';
       noResults.style.display = 'none';
 
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const results = await res.json();
+      // AI 답변 (병렬 실행)
+      aiPanel.style.display = 'block';
+      aiAnswer.className = 'loading';
+      aiAnswer.textContent = '답변 생성 중…';
+      aiSource.textContent = '';
 
-      if (results.length === 0) {
+      const [searchRes, aiRes] = await Promise.all([
+        fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()),
+        fetch(`/api/ask?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => null)
+      ]);
+
+      // 검색 결과 렌더
+      if (searchRes.length === 0) {
         searchHeading.textContent = `"${q}" — 검색 결과 없음`;
         noResults.style.display = 'block';
-        return;
+      } else {
+        searchHeading.textContent = `"${q}" — 관련 페이지 ${searchRes.length}개`;
+        searchRes.forEach(r => {
+          const a = document.createElement('a');
+          a.className = 'result-card';
+          a.href = `/wiki/${encodeURIComponent(r.name)}`;
+          a.innerHTML = `<div class="rc-title">${r.name}</div><div class="rc-snippet">${r.snippet}</div>`;
+          resultsList.appendChild(a);
+        });
       }
-      searchHeading.textContent = `"${q}" — ${results.length}개 페이지에서 찾음`;
-      resultsList.innerHTML = '';
-      results.forEach(r => {
-        const a = document.createElement('a');
-        a.className = 'result-card';
-        a.href = `/wiki/${encodeURIComponent(r.name)}`;
-        a.innerHTML = `<div class="rc-title">${r.name}</div><div class="rc-snippet">${r.snippet}</div>`;
-        resultsList.appendChild(a);
-      });
+
+      // AI 답변 렌더
+      if (aiRes && aiRes.answer) {
+        aiAnswer.className = '';
+        aiAnswer.textContent = aiRes.answer;
+        if (searchRes.length > 0) {
+          aiSource.textContent = '참조: ' + searchRes.slice(0, 3).map(r => r.name).join(', ');
+        }
+      } else if (aiRes && aiRes.noKey) {
+        aiPanel.style.display = 'none';
+      } else {
+        aiAnswer.className = '';
+        aiAnswer.textContent = 'AI 답변을 가져올 수 없습니다.';
+      }
     }
 
     function applyCardDim(q) {

@@ -2,6 +2,11 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
+const Anthropic = require('@anthropic-ai/sdk');
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic()
+  : null;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -152,6 +157,36 @@ function search(query) {
     .sort((a, b) => b.score - a.score);
 }
 
+// AI 질문 답변
+async function askAI(question) {
+  if (!anthropic) return null;
+  const files = fs.readdirSync(WIKI_DIR)
+    .filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
+  const context = files.map(f => {
+    const name = f.replace('.md', '');
+    const content = fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8');
+    return `=== ${name} ===\n${content}`;
+  }).join('\n\n');
+
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: `당신은 마더스마일 주식회사(유아용품 일본법인) 지식 위키의 AI 어시스턴트입니다.
+아래 위키 내용만을 근거로 질문에 한국어로 답변하세요.
+위키에 없는 내용은 "위키에 해당 정보가 없습니다"라고 답하세요.
+답변은 간결하고 구체적으로, 수치가 있으면 반드시 포함하세요.
+
+위키 내용:
+${context}
+
+질문: ${question}`
+    }]
+  });
+  return msg.content[0].text;
+}
+
 // 라우트
 app.get('/', (req, res) => {
   const sidebar = parseSidebar();
@@ -161,6 +196,18 @@ app.get('/', (req, res) => {
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
   res.json(q ? search(q) : []);
+});
+
+app.get('/api/ask', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ answer: null });
+  if (!anthropic) return res.json({ answer: null, noKey: true });
+  try {
+    const answer = await askAI(q);
+    res.json({ answer });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/wiki/:page', (req, res) => {
