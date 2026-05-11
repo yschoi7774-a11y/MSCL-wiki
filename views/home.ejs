@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSCL 지식 위키</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Home-specific */
+    .home-hero {
+      text-align: center;
+      padding: 48px 24px 32px;
+    }
+    .home-hero h1 { font-size: 28px; color: #1a1a2e; margin-bottom: 6px; }
+    .home-hero p { color: #888; font-size: 14px; }
+
+    .home-search-wrap {
+      max-width: 480px;
+      margin: 20px auto 0;
+      position: relative;
+    }
+    .home-search-wrap input {
+      width: 100%;
+      padding: 10px 18px 10px 42px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      background: #fff;
+      color: #222;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .home-search-wrap input:focus { border-color: #4a6fa5; box-shadow: 0 2px 12px rgba(74,111,165,0.15); }
+    .home-search-wrap .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: #aaa; font-size: 16px; pointer-events: none;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      padding: 0 24px;
+      border-bottom: 1px solid #e0ddd8;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .tab-btn {
+      padding: 10px 24px;
+      border: none;
+      background: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: #999;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .tab-btn.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
+    .tab-btn:hover:not(.active) { color: #555; }
+
+    /* Category tab */
+    #tab-category { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+    .cat-section { margin-bottom: 36px; }
+    .cat-section h2 {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #888;
+      margin-bottom: 12px; padding-bottom: 6px;
+      border-bottom: 1px solid #ede9e3;
+    }
+    .page-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .page-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e8e4de;
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: #222;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .page-card:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.08); border-color: #c0b8d0; }
+    .page-card.hidden { display: none; }
+    .page-card .card-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+    .page-card .card-desc { font-size: 12px; color: #888; line-height: 1.4; }
+    .cat-empty { color: #ccc; font-size: 13px; font-style: italic; display: none; }
+    .cat-section.all-hidden .cat-empty { display: block; }
+
+    /* Search results (full-text) */
+    #search-results-section {
+      max-width: 960px; margin: 0 auto; padding: 32px 24px;
+      display: none;
+    }
+    #search-results-section h2 { font-size: 15px; color: #888; margin-bottom: 16px; }
+    .result-card {
+      background: #fff; border: 1px solid #e8e4de; border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 10px;
+      text-decoration: none; display: block; color: #222;
+      transition: box-shadow 0.15s;
+    }
+    .result-card:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.08); }
+    .result-card .card-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+    .result-card .card-snippet { font-size: 13px; color: #666; line-height: 1.6; }
+    .result-card .card-snippet mark { background: #fff3a3; color: #333; border-radius: 2px; padding: 0 2px; }
+    #no-results { color: #999; font-style: italic; text-align: center; padding: 40px 0; display: none; }
+
+    /* Graph tab */
+    #tab-graph { display: none; position: relative; }
+    #graph-canvas {
+      width: 100%;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+      background: #0f0f1a;
+    }
+    #graph-tooltip {
+      position: fixed; background: rgba(20,20,40,0.95); color: #e8e8f0;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px;
+      pointer-events: none; display: none; border: 1px solid #4a6fa5;
+    }
+    #graph-tooltip .tip-title { font-weight: 700; }
+    #graph-tooltip .tip-cat { font-size: 11px; color: #aaa; }
+    #graph-legend {
+      position: absolute; bottom: 20px; left: 20px;
+      background: rgba(15,15,26,0.9); border-radius: 10px;
+      padding: 12px 16px; color: #ccc; font-size: 12px; border: 1px solid #222244;
+    }
+    #graph-legend h4 { color: #e8e8f0; margin-bottom: 8px; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+    #graph-hint {
+      position: absolute; top: 12px; right: 16px;
+      color: #444; font-size: 11px;
+    }
+
+    .tab-content { display: block; }
+    .tab-content.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">📚 MSCL 지식 위키</a>
+  </header>
+
+  <div class="home-hero">
+    <h1>MSCL 지식 위키</h1>
+    <p>마더스마일 서포트팀 이사의 업무·학습 지식 베이스</p>
+    <div class="home-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="live-search" placeholder="페이지 검색 또는 질문…" autocomplete="off" autofocus>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="category">카테고리</button>
+    <button class="tab-btn" data-tab="graph">그래프</button>
+  </div>
+
+  <!-- Search results (full-text, overlays both tabs) -->
+  <div id="search-results-section">
+    <h2 id="search-heading"></h2>
+    <div id="search-results-list"></div>
+    <div id="no-results">검색 결과가 없습니다.</div>
+  </div>
+
+  <!-- Category tab -->
+  <div id="tab-category" class="tab-content">
+    <% sidebar.forEach(cat => { %>
+      <div class="cat-section" data-cat="<%= cat.name %>">
+        <h2><%= cat.name %></h2>
+        <% if (cat.pages.length === 0) { %>
+          <p class="cat-empty">등록된 페이지 없음</p>
+        <% } else { %>
+          <div class="page-grid">
+            <% cat.pages.forEach(page => { %>
+              <a href="/wiki/<%= encodeURIComponent(page.name) %>"
+                 class="page-card"
+                 data-title="<%= page.name %>"
+                 data-desc="<%= page.desc %>">
+                <div class="card-title"><%= page.name %></div>
+                <% if (page.desc) { %><div class="card-desc"><%= page.desc %></div><% } %>
+              </a>
+            <% }) %>
+          </div>
+          <p class="cat-empty">일치하는 페이지 없음</p>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+
+  <!-- Graph tab -->
+  <div id="tab-graph" class="tab-content hidden">
+    <div style="position:relative">
+      <svg id="graph-canvas"></svg>
+      <div id="graph-tooltip"><div class="tip-title"></div><div class="tip-cat"></div></div>
+      <div id="graph-hint">드래그 이동 · 스크롤 확대 · 클릭으로 열기</div>
+      <div id="graph-legend"><h4>카테고리</h4></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script>
+    const COLORS = {
+      '규정·정책': '#ef5350', '매뉴얼·절차': '#42a5f5', '교육·학습': '#66bb6a',
+      '제품': '#ffa726', '프로젝트': '#ab47bc', '아이디어': '#26c6da',
+      '업계·시장': '#8d6e63', '기타': '#78909c'
+    };
+
+    // Legend
+    const legend = document.getElementById('graph-legend');
+    Object.entries(COLORS).forEach(([cat, color]) => {
+      const div = document.createElement('div');
+      div.className = 'legend-item';
+      div.innerHTML = `<div class="legend-dot" style="background:${color}"></div><span>${cat}</span>`;
+      legend.appendChild(div);
+    });
+
+    // Tabs
+    let graphInited = false;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.getElementById('tab-category').classList.toggle('hidden', tab !== 'category');
+        document.getElementById('tab-graph').classList.toggle('hidden', tab !== 'graph');
+        if (tab === 'graph' && !graphInited) { initGraph(); graphInited = true; }
+        if (tab === 'graph') applyGraphSearch(document.getElementById('live-search').value.trim());
+      });
+    });
+
+    // Live search
+    const searchInput = document.getElementById('live-search');
+    const searchSection = document.getElementById('search-results-section');
+    const resultsList = document.getElementById('search-results-list');
+    const noResults = document.getElementById('no-results');
+    const searchHeading = document.getElementById('search-heading');
+    let searchTimer;
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        const q = searchInput.value.trim();
+        const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+        if (!q) {
+          // Reset
+          searchSection.style.display = 'none';
+          document.getElementById('tab-category').classList.remove('hidden');
+          if (activeTab === 'graph') { document.getElementById('tab-graph').classList.remove('hidden'); }
+          document.getElementById('tab-category').classList.toggle('hidden', activeTab !== 'category');
+          document.getElementById('tab-graph').classList.toggle('hidden', activeTab !== 'graph');
+          resetCategoryFilter();
+          applyGraphSearch('');
+          return;
+        }
+
+        if (activeTab === 'category') {
+          // Filter cards inline
+          searchSection.style.display = 'none';
+          document.getElementById('tab-category').classList.remove('hidden');
+          filterCategories(q);
+        } else {
+          // Full-text search for graph tab
+          searchSection.style.display = 'block';
+          document.getElementById('tab-graph').classList.remove('hidden');
+          searchSection.style.marginTop = '0';
+          fetchSearch(q);
+        }
+        applyGraphSearch(q);
+      }, 200);
+    });
+
+    // Category filter
+    function filterCategories(q) {
+      const lower = q.toLowerCase();
+      document.querySelectorAll('.cat-section').forEach(section => {
+        let anyVisible = false;
+        section.querySelectorAll('.page-card').forEach(card => {
+          const title = card.dataset.title.toLowerCase();
+          const desc = card.dataset.desc.toLowerCase();
+          const match = title.includes(lower) || desc.includes(lower);
+          card.classList.toggle('hidden', !match);
+          if (match) anyVisible = true;
+        });
+        section.classList.toggle('all-hidden', !anyVisible);
+      });
+    }
+
+    function resetCategoryFilter() {
+      document.querySelectorAll('.page-card').forEach(c => c.classList.remove('hidden'));
+      document.querySelectorAll('.cat-section').forEach(s => s.classList.remove('all-hidden'));
+    }
+
+    // Full-text search (server)
+    async function fetchSearch(q) {
+      searchHeading.textContent = `"${q}" 검색 결과`;
+      resultsList.innerHTML = '<p style="color:#aaa;font-size:13px">검색 중…</p>';
+      noResults.style.display = 'none';
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const results = await res.json();
+      resultsList.innerHTML = '';
+      if (results.length === 0) {
+        noResults.style.display = 'block';
+        return;
+      }
+      searchHeading.textContent = `"${q}" — ${results.length}개 페이지`;
+      results.forEach(r => {
+        const a = document.createElement('a');
+        a.className = 'result-card';
+        a.href = `/wiki/${encodeURIComponent(r.name)}`;
+        a.innerHTML = `<div class="card-title">${r.name}</div><div class="card-snippet">${r.snippet}</div>`;
+        resultsList.appendChild(a);
+      });
+    }
+
+    // Graph
+    let nodeSelection, simulation;
+    function applyGraphSearch(q) {
+      if (!graphInited || !nodeSelection) return;
+      const lower = q.toLowerCase();
+      nodeSelection.select('circle').attr('opacity', d => {
+        if (!q) return 0.85;
+        return d.id.toLowerCase().includes(lower) ? 1 : 0.12;
+      });
+      nodeSelection.select('text').attr('opacity', d => {
+        if (!q) return 1;
+        return d.id.toLowerCase().includes(lower) ? 1 : 0.15;
+      });
+    }
+
+    function initGraph() {
+      const svg = d3.select('#graph-canvas');
+      const el = document.getElementById('graph-canvas');
+      const width = el.clientWidth;
+      const height = el.clientHeight;
+      const tooltip = document.getElementById('graph-tooltip');
+      const g = svg.append('g');
+
+      svg.call(d3.zoom().scaleExtent([0.2, 5]).on('zoom', e => g.attr('transform', e.transform)));
+
+      fetch('/api/graph').then(r => r.json()).then(data => {
+        simulation = d3.forceSimulation(data.nodes)
+          .force('link', d3.forceLink(data.links).id(d => d.id).distance(130))
+          .force('charge', d3.forceManyBody().strength(-320))
+          .force('center', d3.forceCenter(width / 2, height / 2))
+          .force('collision', d3.forceCollide(42));
+
+        g.append('g').selectAll('line').data(data.links).join('line')
+          .attr('stroke', '#1e1e3a').attr('stroke-width', 1.5);
+
+        nodeSelection = g.append('g').selectAll('g').data(data.nodes).join('g')
+          .style('cursor', 'pointer')
+          .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+          )
+          .on('click', (e, d) => { window.location.href = `/wiki/${encodeURIComponent(d.id)}`; })
+          .on('mouseover', (e, d) => {
+            tooltip.style.display = 'block';
+            tooltip.querySelector('.tip-title').textContent = d.id;
+            tooltip.querySelector('.tip-cat').textContent = d.category;
+          })
+          .on('mousemove', e => {
+            tooltip.style.left = (e.clientX + 14) + 'px';
+            tooltip.style.top = (e.clientY - 10) + 'px';
+          })
+          .on('mouseout', () => { tooltip.style.display = 'none'; });
+
+        nodeSelection.append('circle').attr('r', 18)
+          .attr('fill', d => COLORS[d.category] || COLORS['기타'])
+          .attr('fill-opacity', 0.85)
+          .attr('stroke', '#0f0f1a').attr('stroke-width', 2);
+
+        nodeSelection.append('text').attr('text-anchor', 'middle').attr('dy', 32)
+          .attr('fill', '#ccc').attr('font-size', 11)
+          .text(d => d.id.length > 10 ? d.id.slice(0, 10) + '…' : d.id);
+
+        const linkSel = g.selectAll('line');
+        simulation.on('tick', () => {
+          linkSel
+            .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+          nodeSelection.attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

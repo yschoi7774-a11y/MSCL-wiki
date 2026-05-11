@@ -153,7 +153,15 @@ function search(query) {
 }
 
 // 라우트
-app.get('/', (req, res) => res.redirect('/wiki/index'));
+app.get('/', (req, res) => {
+  const sidebar = parseSidebar();
+  res.render('home', { sidebar });
+});
+
+app.get('/api/search', (req, res) => {
+  const q = (req.query.q || '').trim();
+  res.json(q ? search(q) : []);
+});
 
 app.get('/wiki/:page', (req, res) => {
   const pageName = decodeURIComponent(req.params.page);
