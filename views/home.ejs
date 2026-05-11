@@ -8,20 +8,20 @@
   <style>
     .home-hero {
       text-align: center;
-      padding: 44px 24px 28px;
+      padding: 44px 24px 24px;
     }
     .home-hero h1 { font-size: 26px; color: #1a1a2e; margin-bottom: 4px; }
     .home-hero p { color: #999; font-size: 13px; }
 
     .home-search-wrap {
-      max-width: 500px;
+      max-width: 520px;
       margin: 18px auto 0;
       position: relative;
     }
     .home-search-wrap input {
       width: 100%;
-      padding: 11px 18px 11px 44px;
-      border: 1px solid #ddd;
+      padding: 12px 18px 12px 46px;
+      border: 1.5px solid #ddd;
       border-radius: 12px;
       font-size: 15px;
       outline: none;
@@ -32,41 +32,67 @@
     }
     .home-search-wrap input:focus {
       border-color: #4a6fa5;
-      box-shadow: 0 2px 14px rgba(74,111,165,0.18);
+      box-shadow: 0 2px 16px rgba(74,111,165,0.18);
     }
     .search-icon {
       position: absolute; left: 15px; top: 50%;
-      transform: translateY(-50%); color: #bbb; font-size: 16px; pointer-events: none;
+      transform: translateY(-50%); color: #bbb; font-size: 17px; pointer-events: none;
     }
+    .search-hint { font-size: 11px; color: #ccc; margin-top: 8px; }
 
-    /* Tabs */
-    .tab-bar {
-      display: flex;
-      justify-content: center;
-      gap: 4px;
-      border-bottom: 1px solid #e0ddd8;
-      margin: 4px 0 0;
-    }
-    .tab-btn {
-      padding: 10px 28px;
-      border: none; background: none;
-      font-size: 14px; font-weight: 600; color: #aaa;
-      cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -1px; transition: all 0.15s;
-    }
-    .tab-btn.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
-    .tab-btn:hover:not(.active) { color: #555; }
-
-    /* Search results panel */
-    #search-panel {
+    /* ── AI 답변 섹션 ── */
+    #ai-section {
       display: none;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 24px 24px 0;
+      max-width: 780px;
+      margin: 28px auto 0;
+      padding: 0 24px;
     }
-    #search-panel h2 {
-      font-size: 13px; color: #888; margin-bottom: 14px;
-      font-weight: 500;
+    #ai-section .section-label {
+      font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6a8fd8; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #ai-box {
+      background: #16213e;
+      border: 1px solid #2e3f6e;
+      border-radius: 14px;
+      padding: 22px 26px;
+      color: #dde4f0;
+    }
+    #ai-question {
+      font-size: 13px; color: #7a8aaa; margin-bottom: 14px;
+      padding-bottom: 12px; border-bottom: 1px solid #1e2e4e;
+    }
+    #ai-question span { color: #9aadcc; font-weight: 600; }
+    #ai-answer-content {
+      font-size: 14.5px; line-height: 1.8; color: #d8e0f0;
+      min-height: 40px;
+    }
+    #ai-answer-content.loading {
+      color: #445577; font-style: italic; animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+    #ai-answer-content p { margin-bottom: 8px; }
+    #ai-answer-content p:last-child { margin-bottom: 0; }
+    #ai-refs {
+      display: none;
+      margin-top: 16px; padding-top: 12px;
+      border-top: 1px solid #1e2e4e;
+      font-size: 12px; color: #445577;
+    }
+    #ai-refs a { color: #5577aa; text-decoration: none; margin-right: 10px; }
+    #ai-refs a:hover { text-decoration: underline; }
+
+    /* ── 키워드 검색 결과 ── */
+    #search-section {
+      display: none;
+      max-width: 780px;
+      margin: 24px auto 0;
+      padding: 0 24px;
+    }
+    #search-section .section-label {
+      font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #888; margin-bottom: 10px;
     }
     .result-card {
       display: block;
@@ -79,40 +105,27 @@
     .result-card .rc-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 5px; }
     .result-card .rc-snippet { font-size: 13px; color: #666; line-height: 1.6; }
     .result-card .rc-snippet mark { background: #fff3a3; color: #333; border-radius: 2px; padding: 0 2px; }
-    #no-results { color: #bbb; font-style: italic; text-align: center; padding: 32px 0; font-size: 14px; }
+    #no-results { color: #bbb; font-style: italic; text-align: center; padding: 24px 0; font-size: 14px; }
 
-    /* AI answer */
-    #ai-panel {
-      display: none;
-      max-width: 800px;
-      margin: 24px auto 0;
-      padding: 0 24px;
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      border-bottom: 1px solid #e0ddd8;
+      margin: 28px 0 0;
     }
-    #ai-box {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border: 1px solid #3a3a5c;
-      border-radius: 14px;
-      padding: 20px 24px;
-      color: #e8e8f0;
+    .tab-btn {
+      padding: 10px 28px;
+      border: none; background: none;
+      font-size: 14px; font-weight: 600; color: #aaa;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all 0.15s;
     }
-    #ai-box .ai-header {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #7a7aaa;
-      margin-bottom: 12px;
-    }
-    #ai-box .ai-header span { color: #6a8fd8; }
-    #ai-answer {
-      font-size: 14px; line-height: 1.75; color: #d8d8f0;
-      white-space: pre-wrap;
-    }
-    #ai-answer.loading { color: #555577; font-style: italic; }
-    #ai-source {
-      margin-top: 12px; font-size: 11px; color: #555577;
-      border-top: 1px solid #2a2a4a; padding-top: 10px;
-    }
+    .tab-btn.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
+    .tab-btn:hover:not(.active) { color: #555; }
 
-    /* Category tab */
+    /* ── Category tab ── */
     #tab-category {
       max-width: 960px; margin: 0 auto; padding: 28px 24px;
     }
@@ -132,18 +145,24 @@
       display: block;
       background: #fff; border: 1px solid #e8e4de; border-radius: 10px;
       padding: 14px 16px; text-decoration: none; color: #222;
-      transition: box-shadow 0.15s, border-color 0.15s;
+      transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
     }
     .page-card:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.08); border-color: #c0b0d8; }
-    .page-card.dimmed { opacity: 0.2; }
+    .page-card.dimmed { opacity: 0.18; }
     .page-card .card-title { font-size: 13.5px; font-weight: 600; color: #1a1a2e; margin-bottom: 3px; }
     .page-card .card-desc { font-size: 12px; color: #999; line-height: 1.4; }
     .cat-no-pages { color: #ccc; font-size: 13px; font-style: italic; }
 
-    /* Graph tab */
+    /* ── Graph tab ── */
     #tab-graph { display: none; }
-    #graph-wrap { position: relative; width: 100%; height: calc(100vh - 230px); min-height: 480px; }
-    #graph-svg { width: 100%; height: 100%; background: #0f0f1a; display: block; }
+    #graph-wrap {
+      width: 100%;
+      height: calc(100vh - 220px);
+      min-height: 500px;
+      position: relative;
+      overflow: hidden;
+    }
+    #graph-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0f0f1a; }
     #graph-tooltip {
       position: fixed; background: rgba(20,20,40,0.96); color: #e8e8f0;
       padding: 8px 14px; border-radius: 8px; font-size: 13px;
@@ -155,11 +174,12 @@
       position: absolute; bottom: 20px; left: 20px;
       background: rgba(10,10,24,0.92); border-radius: 10px;
       padding: 12px 16px; font-size: 12px; border: 1px solid #1a1a38;
+      z-index: 10;
     }
     #graph-legend h4 { color: #999; margin-bottom: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
     .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; color: #ccc; }
     .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    #graph-hint { position: absolute; top: 12px; right: 16px; color: #333; font-size: 11px; }
+    #graph-hint { position: absolute; top: 12px; right: 16px; color: #2a2a44; font-size: 11px; z-index: 10; }
   </style>
 </head>
 <body>
@@ -167,34 +187,38 @@
     <a href="/" class="logo">📚 MSCL 지식 위키</a>
   </header>
 
+  <!-- Hero + Search -->
   <div class="home-hero">
     <h1>MSCL 지식 위키</h1>
     <p>마더스마일 서포트팀 이사의 업무·학습 지식 베이스</p>
     <div class="home-search-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="live-search" placeholder="검색어를 입력하세요…" autocomplete="off">
+      <input type="text" id="live-search" placeholder="키워드 또는 질문을 입력하세요…" autocomplete="off">
+    </div>
+    <p class="search-hint">예: 임원 1박 2일 미국 출장 수당 얼마?</p>
+  </div>
+
+  <!-- ① AI 답변 섹션 -->
+  <div id="ai-section">
+    <div class="section-label">✦ AI 답변</div>
+    <div id="ai-box">
+      <div id="ai-question">Q. <span id="ai-q-text"></span></div>
+      <div id="ai-answer-content" class="loading">답변 생성 중…</div>
+      <div id="ai-refs"></div>
     </div>
   </div>
 
+  <!-- ② 키워드 검색 결과 섹션 -->
+  <div id="search-section">
+    <div class="section-label">관련 페이지</div>
+    <div id="search-results-list"></div>
+    <div id="no-results">검색 결과가 없습니다.</div>
+  </div>
+
+  <!-- Tabs -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="category">카테고리</button>
     <button class="tab-btn" data-tab="graph">그래프</button>
-  </div>
-
-  <!-- AI answer panel -->
-  <div id="ai-panel">
-    <div id="ai-box">
-      <div class="ai-header">✦ <span>AI 답변</span> — 위키 내용 기반</div>
-      <div id="ai-answer" class="loading">답변 생성 중…</div>
-      <div id="ai-source"></div>
-    </div>
-  </div>
-
-  <!-- Search results (shown above both tabs when searching) -->
-  <div id="search-panel">
-    <h2 id="search-heading"></h2>
-    <div id="search-results-list"></div>
-    <div id="no-results">검색 결과가 없습니다.</div>
   </div>
 
   <!-- Category tab -->
@@ -241,7 +265,7 @@
       '업계·시장': '#8d6e63', '기타': '#78909c'
     };
 
-    // Legend
+    // 범례 생성
     Object.entries(COLORS).forEach(([cat, color]) => {
       const div = document.createElement('div');
       div.className = 'legend-item';
@@ -249,87 +273,109 @@
       document.getElementById('graph-legend').appendChild(div);
     });
 
-    // Tab switching
+    // ── 탭 전환 ──
     let graphInited = false;
     let nodeSelection = null;
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        const tab = btn.dataset.tab;
         document.getElementById('tab-category').style.display = tab === 'category' ? '' : 'none';
-        document.getElementById('tab-graph').style.display = tab === 'graph' ? '' : 'none';
+        const graphEl = document.getElementById('tab-graph');
+        graphEl.style.display = tab === 'graph' ? '' : 'none';
+
         if (tab === 'graph' && !graphInited) {
-          // 탭이 표시된 후 크기 측정을 위해 약간 지연
-          setTimeout(initGraph, 60);
           graphInited = true;
+          // 두 번의 RAF로 브라우저 페인트 완료 후 측정
+          requestAnimationFrame(() => requestAnimationFrame(initGraph));
         }
       });
     });
 
-    // Search
-    const searchInput = document.getElementById('live-search');
-    const searchPanel = document.getElementById('search-panel');
-    const resultsList = document.getElementById('search-results-list');
-    const noResults = document.getElementById('no-results');
-    const searchHeading = document.getElementById('search-heading');
-    const aiPanel = document.getElementById('ai-panel');
-    const aiAnswer = document.getElementById('ai-answer');
-    const aiSource = document.getElementById('ai-source');
+    // ── 검색 ──
+    const searchInput  = document.getElementById('live-search');
+    const aiSection    = document.getElementById('ai-section');
+    const aiQText      = document.getElementById('ai-q-text');
+    const aiContent    = document.getElementById('ai-answer-content');
+    const aiRefs       = document.getElementById('ai-refs');
+    const searchSection = document.getElementById('search-section');
+    const resultsList  = document.getElementById('search-results-list');
+    const noResults    = document.getElementById('no-results');
     let searchTimer;
+    let currentQ = '';
 
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        const q = searchInput.value.trim();
-        if (!q) {
-          searchPanel.style.display = 'none';
-          aiPanel.style.display = 'none';
-          resetDim();
-          return;
-        }
-        runSearch(q);
-      }, 400);
+      searchTimer = setTimeout(() => doSearch(searchInput.value.trim()), 400);
     });
-
-    // Enter 키로 즉시 실행
     searchInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        clearTimeout(searchTimer);
-        const q = searchInput.value.trim();
-        if (q) runSearch(q);
-      }
+      if (e.key === 'Enter') { clearTimeout(searchTimer); doSearch(searchInput.value.trim()); }
     });
 
-    async function runSearch(q) {
+    async function doSearch(q) {
+      if (!q) {
+        aiSection.style.display = 'none';
+        searchSection.style.display = 'none';
+        resetDim();
+        return;
+      }
+      currentQ = q;
+
+      // 카드/노드 dim
       applyCardDim(q);
       applyNodeDim(q);
 
-      // 키워드 검색 결과
-      searchPanel.style.display = 'block';
-      searchHeading.textContent = `검색 중…`;
-      resultsList.innerHTML = '';
+      // ① AI 섹션 표시
+      aiSection.style.display = 'block';
+      aiQText.textContent = q;
+      aiContent.className = 'loading';
+      aiContent.innerHTML = '답변 생성 중…';
+      aiRefs.style.display = 'none';
+
+      // ② 검색 섹션 표시
+      searchSection.style.display = 'block';
+      resultsList.innerHTML = '<p style="color:#ccc;font-size:13px">검색 중…</p>';
       noResults.style.display = 'none';
 
-      // AI 답변 (병렬 실행)
-      aiPanel.style.display = 'block';
-      aiAnswer.className = 'loading';
-      aiAnswer.textContent = '답변 생성 중…';
-      aiSource.textContent = '';
-
-      const [searchRes, aiRes] = await Promise.all([
-        fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()),
+      // 병렬 실행
+      const [kwResults, aiRes] = await Promise.all([
+        fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []),
         fetch(`/api/ask?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => null)
       ]);
 
-      // 검색 결과 렌더
-      if (searchRes.length === 0) {
-        searchHeading.textContent = `"${q}" — 검색 결과 없음`;
+      // 최신 쿼리 결과만 반영
+      if (q !== currentQ) return;
+
+      // ① AI 답변 렌더링
+      if (aiRes && aiRes.answer) {
+        aiContent.className = '';
+        // 줄바꿈을 <p> 태그로 변환
+        aiContent.innerHTML = aiRes.answer
+          .split(/\n\n+/)
+          .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+          .join('');
+        if (kwResults.length > 0) {
+          const links = kwResults.slice(0, 4).map(r =>
+            `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
+          ).join('');
+          aiRefs.innerHTML = `📄 참조: ${links}`;
+          aiRefs.style.display = 'block';
+        }
+      } else if (aiRes && aiRes.noKey) {
+        aiSection.style.display = 'none';
+      } else {
+        aiContent.className = '';
+        aiContent.innerHTML = '<span style="color:#445577">AI 서비스를 사용할 수 없습니다.</span>';
+      }
+
+      // ② 키워드 검색 결과 렌더링
+      resultsList.innerHTML = '';
+      if (kwResults.length === 0) {
         noResults.style.display = 'block';
       } else {
-        searchHeading.textContent = `"${q}" — 관련 페이지 ${searchRes.length}개`;
-        searchRes.forEach(r => {
+        kwResults.forEach(r => {
           const a = document.createElement('a');
           a.className = 'result-card';
           a.href = `/wiki/${encodeURIComponent(r.name)}`;
@@ -337,41 +383,14 @@
           resultsList.appendChild(a);
         });
       }
-
-      // AI 답변 렌더
-      if (aiRes && aiRes.answer) {
-        aiAnswer.className = '';
-        aiAnswer.textContent = aiRes.answer;
-        if (searchRes.length > 0) {
-          aiSource.textContent = '참조: ' + searchRes.slice(0, 3).map(r => r.name).join(', ');
-        }
-      } else if (aiRes && aiRes.noKey) {
-        aiPanel.style.display = 'none';
-      } else {
-        aiAnswer.className = '';
-        aiAnswer.textContent = 'AI 답변을 가져올 수 없습니다.';
-      }
     }
 
     function applyCardDim(q) {
       const lower = q.toLowerCase();
       document.querySelectorAll('.page-card').forEach(card => {
-        const title = (card.dataset.title || '').toLowerCase();
-        card.classList.toggle('dimmed', !title.includes(lower));
+        card.classList.toggle('dimmed', !card.dataset.title.toLowerCase().includes(lower));
       });
     }
-
-    function applyNodeDim(q) {
-      if (!nodeSelection) return;
-      const lower = q.toLowerCase();
-      nodeSelection.select('circle').attr('opacity', d =>
-        d.id.toLowerCase().includes(lower) ? 1 : 0.1
-      );
-      nodeSelection.select('text').attr('opacity', d =>
-        d.id.toLowerCase().includes(lower) ? 1 : 0.1
-      );
-    }
-
     function resetDim() {
       document.querySelectorAll('.page-card').forEach(c => c.classList.remove('dimmed'));
       if (nodeSelection) {
@@ -379,50 +398,62 @@
         nodeSelection.select('text').attr('opacity', 1);
       }
     }
+    function applyNodeDim(q) {
+      if (!nodeSelection) return;
+      const lower = q.toLowerCase();
+      nodeSelection.select('circle').attr('opacity', d => d.id.toLowerCase().includes(lower) ? 1 : 0.08);
+      nodeSelection.select('text').attr('opacity', d => d.id.toLowerCase().includes(lower) ? 1 : 0.08);
+    }
 
-    // Graph
+    // ── 그래프 초기화 ──
     function initGraph() {
-      const svg = d3.select('#graph-svg');
-      const el = document.getElementById('graph-svg');
-      const width = el.clientWidth || window.innerWidth;
-      const height = el.clientHeight || 500;
+      const wrap = document.getElementById('graph-wrap');
+      // clientWidth가 0이면 window 기준으로 fallback
+      const W = wrap.clientWidth  || window.innerWidth;
+      const H = wrap.clientHeight || Math.max(500, window.innerHeight - 220);
+
+      const svg = d3.select('#graph-svg')
+        .attr('width', W)
+        .attr('height', H);
       const tooltip = document.getElementById('graph-tooltip');
       const g = svg.append('g');
 
       svg.call(d3.zoom().scaleExtent([0.2, 5]).on('zoom', e => g.attr('transform', e.transform)));
 
-      fetch('/api/graph').then(r => r.json()).then(data => {
-        const sim = d3.forceSimulation(data.nodes)
-          .force('link', d3.forceLink(data.links).id(d => d.id).distance(130))
-          .force('charge', d3.forceManyBody().strength(-320))
-          .force('center', d3.forceCenter(width / 2, height / 2))
+      fetch('/api/graph').then(r => r.json()).then(({ nodes, links }) => {
+        const sim = d3.forceSimulation(nodes)
+          .force('link', d3.forceLink(links).id(d => d.id).distance(130))
+          .force('charge', d3.forceManyBody().strength(-350))
+          .force('center', d3.forceCenter(W / 2, H / 2))
           .force('collision', d3.forceCollide(44));
 
-        const linkSel = g.append('g').selectAll('line').data(data.links).join('line')
+        const linkSel = g.append('g')
+          .selectAll('line').data(links).join('line')
           .attr('stroke', '#1e1e3a').attr('stroke-width', 1.5);
 
-        nodeSelection = g.append('g').selectAll('g').data(data.nodes).join('g')
+        nodeSelection = g.append('g')
+          .selectAll('g').data(nodes).join('g')
           .style('cursor', 'pointer')
           .call(d3.drag()
             .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-            .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-            .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+            .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
           )
-          .on('click', (e, d) => { window.location.href = `/wiki/${encodeURIComponent(d.id)}`; })
+          .on('click',     (e, d) => { window.location.href = `/wiki/${encodeURIComponent(d.id)}`; })
           .on('mouseover', (e, d) => {
             tooltip.style.display = 'block';
             tooltip.querySelector('.tip-title').textContent = d.id;
-            tooltip.querySelector('.tip-cat').textContent = d.category;
+            tooltip.querySelector('.tip-cat').textContent  = d.category;
           })
           .on('mousemove', e => {
             tooltip.style.left = (e.clientX + 14) + 'px';
-            tooltip.style.top = (e.clientY - 10) + 'px';
+            tooltip.style.top  = (e.clientY - 10) + 'px';
           })
           .on('mouseout', () => { tooltip.style.display = 'none'; });
 
         nodeSelection.append('circle')
           .attr('r', 18)
-          .attr('fill', d => COLORS[d.category] || COLORS['기타'])
+          .attr('fill',    d => COLORS[d.category] || COLORS['기타'])
           .attr('opacity', 0.85)
           .attr('stroke', '#0f0f1a').attr('stroke-width', 2);
 
@@ -438,7 +469,6 @@
           nodeSelection.attr('transform', d => `translate(${d.x},${d.y})`);
         });
 
-        // 현재 검색어가 있으면 즉시 적용
         const q = searchInput.value.trim();
         if (q) applyNodeDim(q);
       });
