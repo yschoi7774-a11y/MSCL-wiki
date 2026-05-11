@@ -1,0 +1,200 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #2c2c2c;
+  background: #f7f6f3;
+}
+
+header {
+  background: #1a1a2e;
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  color: #e8e8f0;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.container {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 52px);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 24px 12px 24px 0;
+  border-right: 1px solid #e0ddd8;
+  background: #f7f6f3;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+}
+
+.sidebar-category { margin-bottom: 20px; }
+
+.sidebar-category h3 {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 5px 12px;
+  border-radius: 6px;
+  color: #444;
+  text-decoration: none;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-link:hover { background: #ede9e3; color: #1a1a2e; }
+.sidebar-link.active { background: #1a1a2e; color: #fff; }
+
+/* Main content */
+.content {
+  flex: 1;
+  padding: 40px 48px;
+  max-width: 780px;
+  min-width: 0;
+}
+
+.content h1 { font-size: 26px; font-weight: 700; margin-bottom: 20px; color: #1a1a2e; }
+.content h2 { font-size: 18px; font-weight: 600; margin: 32px 0 12px; color: #1a1a2e; border-bottom: 1px solid #e0ddd8; padding-bottom: 6px; }
+.content h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; }
+
+.content p { margin-bottom: 12px; }
+.content ul, .content ol { padding-left: 24px; margin-bottom: 12px; }
+.content li { margin-bottom: 4px; }
+
+.content a { color: #4a6fa5; text-decoration: none; }
+.content a:hover { text-decoration: underline; }
+.content a.wikilink { color: #6a4fa5; border-bottom: 1px dashed #c0a8e8; }
+.content a.wikilink:hover { border-bottom-color: #6a4fa5; text-decoration: none; }
+
+.content code {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  background: #ede9e3;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.content pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.content pre code { background: none; padding: 0; color: inherit; font-size: 13px; }
+
+.content blockquote {
+  border-left: 3px solid #c0a8e8;
+  padding: 8px 16px;
+  margin: 12px 0;
+  color: #555;
+  background: #f0edf8;
+  border-radius: 0 6px 6px 0;
+}
+
+.content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+}
+
+.content th, .content td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.content th { background: #1a1a2e; color: #fff; font-weight: 600; }
+.content tr:nth-child(even) { background: #f3f0ec; }
+
+hr { border: none; border-top: 1px solid #e0ddd8; margin: 28px 0; }
+
+/* Callouts */
+.callout {
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-left: 4px solid;
+}
+
+.callout-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.callout-type {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-right: 6px;
+  opacity: 0.7;
+}
+
+.callout-tip { background: #edf6ec; border-color: #4caf50; }
+.callout-tip .callout-title { color: #2e7d32; }
+.callout-note { background: #e8f0fe; border-color: #4a6fa5; }
+.callout-note .callout-title { color: #1a3a6e; }
+.callout-warning { background: #fff8e1; border-color: #ffc107; }
+.callout-warning .callout-title { color: #856404; }
+.callout-info { background: #e0f7fa; border-color: #00acc1; }
+.callout-info .callout-title { color: #006064; }
+
+/* Collapsible callouts */
+details.callout summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  list-style: none;
+  padding: 0;
+}
+
+details.callout summary::before {
+  content: '▶ ';
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+details.callout[open] summary::before { content: '▼ '; }
+details.callout .callout-content { margin-top: 10px; }
+
+.not-found { color: #888; font-style: italic; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content { padding: 24px 20px; }
+}

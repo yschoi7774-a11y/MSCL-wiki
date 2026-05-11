@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> — MSCL 위키</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <a href="/wiki/index" class="logo">📚 MSCL 지식 위키</a>
+  </header>
+  <div class="container">
+    <nav class="sidebar">
+      <% sidebar.forEach(cat => { %>
+        <div class="sidebar-category">
+          <h3><%= cat.name %></h3>
+          <% cat.pages.forEach(page => { %>
+            <a href="/wiki/<%= encodeURIComponent(page.name) %>"
+               class="sidebar-link <%= currentPage === page.name ? 'active' : '' %>">
+              <%= page.name %>
+            </a>
+          <% }) %>
+        </div>
+      <% }) %>
+    </nav>
+    <main class="content">
+      <%- content %>
+    </main>
+  </div>
+</body>
+</html>
