@@ -288,8 +288,7 @@
 
         if (tab === 'graph' && !graphInited) {
           graphInited = true;
-          // 두 번의 RAF로 브라우저 페인트 완료 후 측정
-          requestAnimationFrame(() => requestAnimationFrame(initGraph));
+          setTimeout(initGraph, 100);
         }
       });
     });
@@ -364,10 +363,11 @@
           aiRefs.style.display = 'block';
         }
       } else if (aiRes && aiRes.noKey) {
-        aiSection.style.display = 'none';
+        aiContent.className = '';
+        aiContent.innerHTML = '<span style="color:#445577;font-size:13px">⚙️ Render 환경변수에 <code>ANTHROPIC_API_KEY</code>를 설정하면 AI 답변이 활성화됩니다.</span>';
       } else {
         aiContent.className = '';
-        aiContent.innerHTML = '<span style="color:#445577">AI 서비스를 사용할 수 없습니다.</span>';
+        aiContent.innerHTML = '<span style="color:#445577">AI 답변을 가져올 수 없습니다.</span>';
       }
 
       // ② 키워드 검색 결과 렌더링
@@ -407,10 +407,8 @@
 
     // ── 그래프 초기화 ──
     function initGraph() {
-      const wrap = document.getElementById('graph-wrap');
-      // clientWidth가 0이면 window 기준으로 fallback
-      const W = wrap.clientWidth  || window.innerWidth;
-      const H = wrap.clientHeight || Math.max(500, window.innerHeight - 220);
+      const W = window.innerWidth;
+      const H = Math.max(500, window.innerHeight - 220);
 
       const svg = d3.select('#graph-svg')
         .attr('width', W)
