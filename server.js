@@ -271,6 +271,13 @@ app.get('/search', (req, res) => {
   res.render('search', { sidebar, currentPage: '__search__', q, results });
 });
 
+app.get('/raw/:filename', (req, res) => {
+  const filename = decodeURIComponent(req.params.filename);
+  const filePath = path.join(__dirname, 'raw', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('파일 없음');
+  res.download(filePath, filename);
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     version: '2026-05-11-v5',
