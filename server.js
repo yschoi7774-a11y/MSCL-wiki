@@ -16,6 +16,7 @@ const WIKI_DIR = path.join(__dirname, 'wiki');
 // ── 인증 ──────────────────────────────────────────
 app.use(session({ secret: process.env.SESSION_SECRET || 'mscl-2026', resave: false, saveUninitialized: false, cookie: { maxAge: 7*24*60*60*1000 } }));
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 const LOGIN_HTML = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>로그인</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#f0f2f5;display:flex;align-items:center;justify-content:center;height:100vh}.box{background:#fff;border-radius:16px;padding:44px 40px;width:320px;box-shadow:0 4px 24px rgba(0,0,0,0.1)}h1{font-size:17px;color:#1a1a2e;margin-bottom:28px;text-align:center;font-weight:700}input{width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none;color:#222}input:focus{border-color:#4a6fa5}button{width:100%;padding:12px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}button:hover{background:#2a2a4e}.err{color:#e53935;font-size:13px;text-align:center;margin-top:14px}</style></head><body><div class="box"><h1>🔐 MSCL 지식 위키</h1><form method="POST" action="/login"><input type="text" name="id" placeholder="아이디" autofocus autocomplete="username"><input type="password" name="password" placeholder="비밀번호" autocomplete="current-password"><button type="submit">로그인</button>__ERR__</form></div></body></html>`;
 
@@ -240,7 +241,6 @@ app.get('/', (req, res) => {
   res.render('home', { sidebar });
 });
 
-app.use(express.json());
 app.post('/api/translate', async (req, res) => {
   const text = (req.body.text || '').trim();
   if (!text || !anthropic) return res.json({ result: null });
