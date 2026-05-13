@@ -201,22 +201,25 @@ async function askAI(question) {
     return `=== ${name} ===\n${content}`;
   }).join('\n\n');
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: `당신은 마더스마일 주식회사(유아용품 일본법인) 지식 위키의 AI 어시스턴트입니다.
+  const msg = await anthropic.messages.create(
+    {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: [{
+        type: 'text',
+        text: `당신은 마더스마일 주식회사(유아용품 일본법인) 지식 위키의 AI 어시스턴트입니다.
 아래 위키 내용만을 근거로 질문에 한국어로 답변하세요.
 위키에 없는 내용은 "위키에 해당 정보가 없습니다"라고 답하세요.
 답변은 간결하고 구체적으로, 수치가 있으면 반드시 포함하세요.
 
 위키 내용:
-${context}
-
-질문: ${question}`
-    }]
-  });
+${context}`,
+        cache_control: { type: 'ephemeral' }
+      }],
+      messages: [{ role: 'user', content: `질문: ${question}` }]
+    },
+    { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } }
+  );
   return msg.content[0].text;
 }
 
