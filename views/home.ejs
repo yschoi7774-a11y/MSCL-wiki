@@ -53,23 +53,24 @@
       display: flex; align-items: center; gap: 6px;
     }
     #ai-box {
-      background: #16213e;
-      border: 1px solid #2e3f6e;
+      background: #fff;
+      border: 1px solid #e0e0e0;
       border-radius: 14px;
-      padding: 22px 26px;
-      color: #dde4f0;
+      padding: 24px 28px;
+      color: #222;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
     #ai-question {
-      font-size: 13px; color: #7a8aaa; margin-bottom: 14px;
-      padding-bottom: 12px; border-bottom: 1px solid #1e2e4e;
+      font-size: 14px; color: #888; margin-bottom: 14px;
+      padding-bottom: 12px; border-bottom: 1px solid #eee;
     }
-    #ai-question span { color: #9aadcc; font-weight: 600; }
+    #ai-question span { color: #1a1a2e; font-weight: 600; }
     #ai-answer-content {
-      font-size: 14.5px; line-height: 1.8; color: #d8e0f0;
+      font-size: 16px; line-height: 1.85; color: #222;
       min-height: 40px;
     }
     #ai-answer-content.loading {
-      color: #445577; font-style: italic; animation: pulse 1.4s ease-in-out infinite;
+      color: #bbb; font-style: italic; animation: pulse 1.4s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
     #ai-answer-content p { margin-bottom: 8px; }
@@ -77,10 +78,10 @@
     #ai-refs {
       display: none;
       margin-top: 16px; padding-top: 12px;
-      border-top: 1px solid #1e2e4e;
-      font-size: 12px; color: #445577;
+      border-top: 1px solid #eee;
+      font-size: 12px; color: #aaa;
     }
-    #ai-refs a { color: #5577aa; text-decoration: none; margin-right: 10px; }
+    #ai-refs a { color: #4a6fa5; text-decoration: none; margin-right: 10px; }
     #ai-refs a:hover { text-decoration: underline; }
 
     /* ── 키워드 검색 결과 ── */
