@@ -346,7 +346,7 @@
         if (!jaAnswer) {
           aiLangBtn.classList.add('loading');
           aiLangBtn.textContent = '번역 중…';
-          const res = await fetch(`/api/translate?text=${encodeURIComponent(koAnswer)}`).then(r => r.json()).catch(() => null);
+          const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: koAnswer }) }).then(r => r.json()).catch(() => null);
           aiLangBtn.classList.remove('loading');
           if (res && res.result) {
             jaAnswer = res.result;

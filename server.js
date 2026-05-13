@@ -240,6 +240,22 @@ app.get('/', (req, res) => {
   res.render('home', { sidebar });
 });
 
+app.use(express.json());
+app.post('/api/translate', async (req, res) => {
+  const text = (req.body.text || '').trim();
+  if (!text || !anthropic) return res.json({ result: null });
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: `以下の韓国語テキストを自然な日本語に翻訳してください。マークダウン形式（表・箇条書き・見出しなど）をそのまま保持してください。翻訳結果のみ出力し、説明は不要です。\n\n${text}` }]
+    });
+    res.json({ result: msg.content[0].text });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
   res.json(q ? search(q) : []);
