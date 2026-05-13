@@ -91,6 +91,16 @@
     }
     #ai-refs a { color: #4a6fa5; text-decoration: none; margin-right: 10px; }
     #ai-refs a:hover { text-decoration: underline; }
+    #ai-lang-btn {
+      position: absolute; top: 16px; right: 20px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #ddd; border-radius: 6px;
+      background: #fff; color: #555; cursor: pointer;
+      transition: all 0.15s;
+    }
+    #ai-lang-btn:hover { border-color: #4a6fa5; color: #4a6fa5; background: #f0f4ff; }
+    #ai-lang-btn.loading { opacity: 0.5; cursor: wait; }
+    #ai-box { position: relative; }
 
     /* ── 키워드 검색 결과 ── */
     #search-section {
@@ -210,6 +220,7 @@
   <div id="ai-section">
     <div class="section-label">✦ AI 답변</div>
     <div id="ai-box">
+      <button id="ai-lang-btn" style="display:none" onclick="toggleLang()">日本語</button>
       <div id="ai-question">Q. <span id="ai-q-text"></span></div>
       <div id="ai-answer-content" class="loading">답변 생성 중…</div>
       <div id="ai-refs"></div>
@@ -322,7 +333,37 @@
     const aiQText      = document.getElementById('ai-q-text');
     const aiContent    = document.getElementById('ai-answer-content');
     const aiRefs       = document.getElementById('ai-refs');
+    const aiLangBtn    = document.getElementById('ai-lang-btn');
     const searchSection = document.getElementById('search-section');
+
+    let koAnswer = '';   // 한국어 원문
+    let jaAnswer = '';   // 일본어 캐시
+    let currentLang = 'ko';
+
+    async function toggleLang() {
+      if (aiLangBtn.classList.contains('loading')) return;
+      if (currentLang === 'ko') {
+        if (!jaAnswer) {
+          aiLangBtn.classList.add('loading');
+          aiLangBtn.textContent = '번역 중…';
+          const res = await fetch(`/api/translate?text=${encodeURIComponent(koAnswer)}`).then(r => r.json()).catch(() => null);
+          aiLangBtn.classList.remove('loading');
+          if (res && res.result) {
+            jaAnswer = res.result;
+          } else {
+            aiLangBtn.textContent = '日本語';
+            return;
+          }
+        }
+        aiContent.innerHTML = marked.parse(jaAnswer);
+        aiLangBtn.textContent = '한국어';
+        currentLang = 'ja';
+      } else {
+        aiContent.innerHTML = marked.parse(koAnswer);
+        aiLangBtn.textContent = '日本語';
+        currentLang = 'ko';
+      }
+    }
     const resultsList  = document.getElementById('search-results-list');
     const noResults    = document.getElementById('no-results');
     let searchTimer;
@@ -350,6 +391,9 @@
       applyNodeDim(q);
 
       // ① AI 섹션 표시
+      koAnswer = ''; jaAnswer = ''; currentLang = 'ko';
+      aiLangBtn.style.display = 'none';
+      aiLangBtn.textContent = '日本語';
       aiSection.style.display = 'block';
       aiQText.textContent = q;
       aiContent.className = 'loading';
@@ -373,7 +417,9 @@
       // ① AI 답변 렌더링
       if (aiRes && aiRes.answer) {
         aiContent.className = '';
+        koAnswer = aiRes.answer;
         aiContent.innerHTML = marked.parse(aiRes.answer);
+        aiLangBtn.style.display = 'block';
         if (kwResults.length > 0) {
           const pageLinks = kwResults.map(r =>
             `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
