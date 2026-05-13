@@ -215,7 +215,7 @@ async function askAI(question) {
   const msg = await anthropic.messages.create(
     {
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 4096,
       system: [{
         type: 'text',
         text: `당신은 마더스마일 주식회사(유아용품 일본법인) 지식 위키의 AI 어시스턴트입니다.
