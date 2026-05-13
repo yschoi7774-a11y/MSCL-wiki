@@ -5,6 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> — MSCL 위키</title>
   <link rel="stylesheet" href="/style.css">
+  <style>
+    /* ── 인페이지 검색 바 ── */
+    #page-search-bar {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #fff;
+      border-bottom: 1.5px solid #e0ddd8;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #page-search-bar input {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    #page-search-bar input:focus { border-color: #4a6fa5; }
+    #page-search-count { font-size: 13px; color: #999; white-space: nowrap; min-width: 60px; }
+    .ps-btn {
+      padding: 5px 10px; border: 1.5px solid #ddd; border-radius: 6px;
+      background: #fff; cursor: pointer; font-size: 13px; color: #555;
+    }
+    .ps-btn:hover { background: #f0f4ff; border-color: #4a6fa5; color: #4a6fa5; }
+    #page-search-close {
+      padding: 4px 8px; border: none; background: none;
+      font-size: 16px; cursor: pointer; color: #aaa; line-height: 1;
+    }
+    #page-search-close:hover { color: #333; }
+
+    mark.ps-hit { background: #fff3a3; color: #333; border-radius: 2px; padding: 0 1px; }
+    mark.ps-hit.ps-current { background: #f97316; color: #fff; }
+  </style>
 </head>
 <body>
   <header>
@@ -12,11 +50,22 @@
     <div class="header-right">
       <a href="/" class="header-btn">홈</a>
       <a href="/graph" class="header-btn">그래프</a>
+      <button class="header-btn" id="open-page-search" title="페이지 내 검색 (Ctrl+F)">🔍 페이지 내 검색</button>
       <form action="/search" method="get" class="search-form">
-        <input name="q" placeholder="검색…" autocomplete="off">
+        <input name="q" placeholder="전체 검색…" autocomplete="off">
       </form>
     </div>
   </header>
+
+  <!-- 인페이지 검색 바 -->
+  <div id="page-search-bar">
+    <input type="text" id="ps-input" placeholder="페이지 내 검색…" autocomplete="off">
+    <span id="page-search-count"></span>
+    <button class="ps-btn" id="ps-prev">▲</button>
+    <button class="ps-btn" id="ps-next">▼</button>
+    <button id="page-search-close">✕</button>
+  </div>
+
   <div class="container">
     <nav class="sidebar">
       <% sidebar.forEach(cat => { %>
@@ -31,9 +80,111 @@
         </div>
       <% }) %>
     </nav>
-    <main class="content">
+    <main class="content" id="wiki-content">
       <%- content %>
     </main>
   </div>
+
+  <script>
+    const bar      = document.getElementById('page-search-bar');
+    const input    = document.getElementById('ps-input');
+    const countEl  = document.getElementById('page-search-count');
+    const btnPrev  = document.getElementById('ps-prev');
+    const btnNext  = document.getElementById('ps-next');
+    const btnClose = document.getElementById('page-search-close');
+    const content  = document.getElementById('wiki-content');
+
+    let hits = [];
+    let cur  = -1;
+    let originalHTML = '';
+
+    function openBar() {
+      bar.style.display = 'flex';
+      input.focus();
+      input.select();
+    }
+    function closeBar() {
+      bar.style.display = 'none';
+      clearHighlights();
+      input.value = '';
+      countEl.textContent = '';
+    }
+
+    document.getElementById('open-page-search').addEventListener('click', openBar);
+    btnClose.addEventListener('click', closeBar);
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        openBar();
+      }
+      if (e.key === 'Escape') closeBar();
+    });
+
+    function clearHighlights() {
+      if (originalHTML) { content.innerHTML = originalHTML; originalHTML = ''; }
+      hits = []; cur = -1;
+    }
+
+    function doSearch(q) {
+      clearHighlights();
+      if (!q) { countEl.textContent = ''; return; }
+
+      originalHTML = content.innerHTML;
+
+      // 텍스트 노드만 순회해서 하이라이트
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      let node;
+      while ((node = walker.nextNode())) nodes.push(node);
+
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      nodes.forEach(n => {
+        if (!re.test(n.textContent)) return;
+        re.lastIndex = 0;
+        const frag = document.createDocumentFragment();
+        let last = 0, m;
+        while ((m = re.exec(n.textContent)) !== null) {
+          frag.appendChild(document.createTextNode(n.textContent.slice(last, m.index)));
+          const mark = document.createElement('mark');
+          mark.className = 'ps-hit';
+          mark.textContent = m[0];
+          frag.appendChild(mark);
+          last = m.index + m[0].length;
+        }
+        frag.appendChild(document.createTextNode(n.textContent.slice(last)));
+        n.parentNode.replaceChild(frag, n);
+      });
+
+      hits = Array.from(content.querySelectorAll('mark.ps-hit'));
+      countEl.textContent = hits.length ? `1 / ${hits.length}` : '없음';
+      if (hits.length) { cur = 0; scrollTo(0); }
+    }
+
+    function scrollTo(i) {
+      hits.forEach((h, idx) => h.classList.toggle('ps-current', idx === i));
+      hits[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      countEl.textContent = `${i + 1} / ${hits.length}`;
+    }
+
+    btnNext.addEventListener('click', () => {
+      if (!hits.length) return;
+      cur = (cur + 1) % hits.length;
+      scrollTo(cur);
+    });
+    btnPrev.addEventListener('click', () => {
+      if (!hits.length) return;
+      cur = (cur - 1 + hits.length) % hits.length;
+      scrollTo(cur);
+    });
+
+    input.addEventListener('input', () => doSearch(input.value.trim()));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        if (!hits.length) return;
+        cur = e.shiftKey ? (cur - 1 + hits.length) % hits.length : (cur + 1) % hits.length;
+        scrollTo(cur);
+      }
+    });
+  </script>
 </body>
 </html>
