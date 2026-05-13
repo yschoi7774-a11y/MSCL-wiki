@@ -75,6 +75,14 @@
     @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
     #ai-answer-content p { margin-bottom: 8px; }
     #ai-answer-content p:last-child { margin-bottom: 0; }
+    #ai-answer-content table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    #ai-answer-content th { background: #1a1a2e; color: #fff; padding: 8px 12px; text-align: left; font-weight: 600; }
+    #ai-answer-content td { padding: 7px 12px; border-bottom: 1px solid #eee; }
+    #ai-answer-content tr:nth-child(even) td { background: #f8fafc; }
+    #ai-answer-content ul, #ai-answer-content ol { padding-left: 20px; margin: 8px 0; }
+    #ai-answer-content li { margin-bottom: 4px; }
+    #ai-answer-content strong { color: #1a1a2e; }
+    #ai-answer-content code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
     #ai-refs {
       display: none;
       margin-top: 16px; padding-top: 12px;
@@ -257,6 +265,7 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script>
     const COLORS = {
@@ -364,11 +373,7 @@
       // ① AI 답변 렌더링
       if (aiRes && aiRes.answer) {
         aiContent.className = '';
-        // 줄바꿈을 <p> 태그로 변환
-        aiContent.innerHTML = aiRes.answer
-          .split(/\n\n+/)
-          .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
-          .join('');
+        aiContent.innerHTML = marked.parse(aiRes.answer);
         if (kwResults.length > 0) {
           const pageLinks = kwResults.map(r =>
             `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
