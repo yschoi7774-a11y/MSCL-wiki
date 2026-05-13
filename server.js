@@ -140,6 +140,17 @@ function buildGraph() {
   return { nodes, links };
 }
 
+// 위키 페이지에서 다운로드 링크 추출 ([[raw/파일명|라벨]] 형식)
+function extractDownloads(raw) {
+  const downloads = [];
+  const re = /\[\[raw\/([^\]|]+?)(?:\|([^\]]+))?\]\]/g;
+  let m;
+  while ((m = re.exec(raw)) !== null) {
+    downloads.push({ file: m[1].trim(), label: (m[2] || m[1]).replace(/^⬇\s*/, '').trim() });
+  }
+  return downloads;
+}
+
 // 검색 인덱스 빌드
 function buildIndex() {
   const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md');
@@ -184,7 +195,7 @@ function search(query) {
         snippet = snippet.replace(new RegExp(`(${t})`, 'gi'), '<mark>$1</mark>');
       });
 
-      return { name: page.name, score, snippet };
+      return { name: page.name, score, snippet, downloads: extractDownloads(page.raw) };
     })
     .filter(Boolean)
     .sort((a, b) => b.score - a.score);

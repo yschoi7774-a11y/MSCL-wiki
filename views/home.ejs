@@ -370,10 +370,18 @@
           .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
           .join('');
         if (kwResults.length > 0) {
-          const links = kwResults.slice(0, 4).map(r =>
+          const pageLinks = kwResults.map(r =>
             `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
           ).join('');
-          aiRefs.innerHTML = `📄 참조: ${links}`;
+
+          // 매칭된 페이지에서 다운로드 링크 수집 (중복 제거)
+          const seenFiles = new Set();
+          const dlLinks = kwResults.flatMap(r => r.downloads || [])
+            .filter(d => { if (seenFiles.has(d.file)) return false; seenFiles.add(d.file); return true; })
+            .map(d => `<a href="/raw/${encodeURIComponent(d.file)}" download>⬇ ${d.label}</a>`)
+            .join('');
+
+          aiRefs.innerHTML = `📄 참조: ${pageLinks}` + (dlLinks ? `<br>📎 양식: ${dlLinks}` : '');
           aiRefs.style.display = 'block';
         }
       } else if (aiRes && aiRes.noKey) {
