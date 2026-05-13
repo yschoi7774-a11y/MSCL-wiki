@@ -371,13 +371,14 @@
 
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => doSearch(searchInput.value.trim()), 400);
+      searchTimer = setTimeout(() => doKeywordSearch(searchInput.value.trim()), 400);
     });
     searchInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { clearTimeout(searchTimer); doSearch(searchInput.value.trim()); }
+      if (e.key === 'Enter') { clearTimeout(searchTimer); doFullSearch(searchInput.value.trim()); }
     });
 
-    async function doSearch(q) {
+    // 키워드 검색만 (입력 중 실시간)
+    async function doKeywordSearch(q) {
       if (!q) {
         aiSection.style.display = 'none';
         searchSection.style.display = 'none';
@@ -385,12 +386,32 @@
         return;
       }
       currentQ = q;
-
-      // 카드/노드 dim
       applyCardDim(q);
       applyNodeDim(q);
 
-      // ① AI 섹션 표시
+      searchSection.style.display = 'block';
+      resultsList.innerHTML = '<p style="color:#ccc;font-size:13px">검색 중…</p>';
+      noResults.style.display = 'none';
+
+      const kwResults = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []);
+      if (q !== currentQ) return;
+
+      renderKeywordResults(kwResults);
+    }
+
+    // 키워드 + AI 답변 (엔터 시)
+    async function doFullSearch(q) {
+      if (!q) {
+        aiSection.style.display = 'none';
+        searchSection.style.display = 'none';
+        resetDim();
+        return;
+      }
+      currentQ = q;
+      applyCardDim(q);
+      applyNodeDim(q);
+
+      // AI 섹션
       koAnswer = ''; jaAnswer = ''; currentLang = 'ko';
       aiLangBtn.style.display = 'none';
       aiLangBtn.textContent = '日本語';
@@ -400,21 +421,18 @@
       aiContent.innerHTML = '답변 생성 중…';
       aiRefs.style.display = 'none';
 
-      // ② 검색 섹션 표시
+      // 키워드 섹션
       searchSection.style.display = 'block';
       resultsList.innerHTML = '<p style="color:#ccc;font-size:13px">검색 중…</p>';
       noResults.style.display = 'none';
 
-      // 병렬 실행
       const [kwResults, aiRes] = await Promise.all([
         fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []),
         fetch(`/api/ask?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => null)
       ]);
-
-      // 최신 쿼리 결과만 반영
       if (q !== currentQ) return;
 
-      // ① AI 답변 렌더링
+      // AI 답변 렌더링
       if (aiRes && aiRes.answer) {
         aiContent.className = '';
         koAnswer = aiRes.answer;
@@ -424,14 +442,11 @@
           const pageLinks = kwResults.map(r =>
             `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
           ).join('');
-
-          // 매칭된 페이지에서 다운로드 링크 수집 (중복 제거)
           const seenFiles = new Set();
           const dlLinks = kwResults.flatMap(r => r.downloads || [])
             .filter(d => { if (seenFiles.has(d.file)) return false; seenFiles.add(d.file); return true; })
             .map(d => `<a href="/raw/${encodeURIComponent(d.file)}" download>⬇ ${d.label}</a>`)
             .join('');
-
           aiRefs.innerHTML = `📄 참조: ${pageLinks}` + (dlLinks ? `<br>📎 양식: ${dlLinks}` : '');
           aiRefs.style.display = 'block';
         }
@@ -443,7 +458,10 @@
         aiContent.innerHTML = '<span style="color:#445577">AI 답변을 가져올 수 없습니다.</span>';
       }
 
-      // ② 키워드 검색 결과 렌더링
+      renderKeywordResults(kwResults);
+    }
+
+    function renderKeywordResults(kwResults) {
       resultsList.innerHTML = '';
       if (kwResults.length === 0) {
         noResults.style.display = 'block';
