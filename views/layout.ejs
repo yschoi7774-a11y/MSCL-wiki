@@ -43,6 +43,30 @@
     mark.ps-hit { background: #fff3a3; color: #333; border-radius: 2px; padding: 0 1px; }
     mark.ps-hit.ps-current { background: #f97316; color: #fff; }
 
+    /* ── 내보내기 드롭다운 ── */
+    .export-wrap { position: relative; display: inline-block; }
+    .export-btn {
+      padding: 6px 14px; font-size: 13px; font-weight: 600;
+      border: 1.5px solid #ddd; border-radius: 8px;
+      background: #fff; color: #555; cursor: pointer;
+      white-space: nowrap;
+    }
+    .export-btn:hover { border-color: #4a6fa5; color: #4a6fa5; background: #f0f4ff; }
+    .export-menu {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0;
+      background: #fff; border: 1.5px solid #e0ddd8; border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 160px; z-index: 300;
+      overflow: hidden;
+    }
+    .export-menu a {
+      display: flex; align-items: center; gap: 9px;
+      padding: 10px 16px; font-size: 14px; color: #333; text-decoration: none;
+      transition: background 0.1s;
+    }
+    .export-menu a:hover { background: #f0f4ff; color: #4a6fa5; }
+    .export-menu .em-icon { font-size: 17px; }
+    .export-wrap.open .export-menu { display: block; }
+
     /* ── 언어 토글 버튼 ── */
     #lang-toggle-btn {
       position: fixed; bottom: 28px; right: 28px;
@@ -62,6 +86,20 @@
     <div class="header-right">
       <a href="/" class="header-btn">홈</a>
       <a href="/graph" class="header-btn">그래프</a>
+      <div class="export-wrap" id="export-wrap">
+        <button class="export-btn" onclick="toggleExportMenu()">내보내기 ▾</button>
+        <div class="export-menu" id="export-menu">
+          <a href="/api/export/<%= encodeURIComponent(currentPage) %>?format=pptx" download>
+            <span class="em-icon">📊</span> PowerPoint (.pptx)
+          </a>
+          <a href="/api/export/<%= encodeURIComponent(currentPage) %>?format=xlsx" download>
+            <span class="em-icon">📗</span> Excel (.xlsx)
+          </a>
+          <a href="/api/export/<%= encodeURIComponent(currentPage) %>?format=docx" download>
+            <span class="em-icon">📝</span> Word (.docx)
+          </a>
+        </div>
+      </div>
       <button class="header-btn" id="open-page-search" title="페이지 내 검색 (Ctrl+F)">🔍 페이지 내 검색</button>
       <form action="/search" method="get" class="search-form">
         <input name="q" placeholder="전체 검색…" autocomplete="off">
@@ -101,6 +139,15 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script>
+    // ── 내보내기 드롭다운 ──
+    function toggleExportMenu() {
+      document.getElementById('export-wrap').classList.toggle('open');
+    }
+    document.addEventListener('click', e => {
+      const wrap = document.getElementById('export-wrap');
+      if (wrap && !wrap.contains(e.target)) wrap.classList.remove('open');
+    });
+
     // ── 페이지 언어 토글 ──
     const langBtn = document.getElementById('lang-toggle-btn');
     const wikiContent = document.getElementById('wiki-content');

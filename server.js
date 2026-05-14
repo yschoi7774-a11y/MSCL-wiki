@@ -4,6 +4,9 @@ const path = require('path');
 const { marked } = require('marked');
 const Anthropic = require('@anthropic-ai/sdk');
 const session = require('express-session');
+const PptxGenJS = require('pptxgenjs');
+const ExcelJS = require('exceljs');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType } = require('docx');
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic()
@@ -236,6 +239,276 @@ ${context}`,
   return msg.content[0].text;
 }
 
+// ── 내보내기 유틸 ──────────────────────────────────
+function cleanText(text) {
+  return (text || '')
+    .replace(/\[\[raw\/[^\]]+\]\]/g, '')
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/[*_`~]/g, '')
+    .replace(/\[!\w+\][^\n]*/g, '')
+    .replace(/^>\s?/gm, '')
+    .trim();
+}
+
+function getBlockquoteText(token) {
+  if (!token) return '';
+  if (typeof token.text === 'string') return token.text;
+  if (Array.isArray(token.tokens)) return token.tokens.map(t => getBlockquoteText(t)).join(' ');
+  return '';
+}
+
+async function generateDocx(pageName, tokens) {
+  const children = [];
+
+  const headingMap = {
+    1: HeadingLevel.HEADING_1,
+    2: HeadingLevel.HEADING_2,
+    3: HeadingLevel.HEADING_3,
+    4: HeadingLevel.HEADING_4,
+    5: HeadingLevel.HEADING_5,
+    6: HeadingLevel.HEADING_6,
+  };
+
+  for (const token of tokens) {
+    if (token.type === 'heading') {
+      children.push(new Paragraph({ text: cleanText(token.text), heading: headingMap[token.depth] || HeadingLevel.HEADING_3 }));
+    } else if (token.type === 'paragraph') {
+      const text = cleanText(token.text);
+      if (text) children.push(new Paragraph({ text }));
+    } else if (token.type === 'blockquote') {
+      const raw = getBlockquoteText(token);
+      const text = cleanText(raw);
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, italics: true, color: '555555' })],
+        indent: { left: 720 },
+        spacing: { before: 100, after: 100 }
+      }));
+    } else if (token.type === 'list') {
+      for (const item of token.items) {
+        const text = cleanText(item.text);
+        if (text) children.push(new Paragraph({
+          text,
+          bullet: { level: token.ordered ? 0 : 0 },
+        }));
+      }
+    } else if (token.type === 'table') {
+      const rows = [];
+      // 헤더
+      rows.push(new TableRow({
+        tableHeader: true,
+        children: token.header.map(h => new TableCell({
+          shading: { type: ShadingType.SOLID, color: 'E0E7FF' },
+          children: [new Paragraph({ children: [new TextRun({ text: cleanText(h.text), bold: true })] })],
+        }))
+      }));
+      // 데이터
+      for (const row of token.rows) {
+        rows.push(new TableRow({
+          children: row.map(cell => new TableCell({
+            children: [new Paragraph({ text: cleanText(cell.text) })],
+          }))
+        }));
+      }
+      children.push(new Table({ rows, width: { size: 9000, type: WidthType.DXA } }));
+      children.push(new Paragraph({}));
+    } else if (token.type === 'code') {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: token.text, font: 'Courier New', size: 20, color: '333333' })],
+        indent: { left: 720 },
+        spacing: { before: 60, after: 60 }
+      }));
+    } else if (token.type === 'space') {
+      children.push(new Paragraph({}));
+    }
+  }
+
+  const doc = new Document({
+    sections: [{ properties: {}, children }]
+  });
+  return Packer.toBuffer(doc);
+}
+
+async function generateXlsx(pageName, tokens) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'MSCL 지식 위키';
+
+  // 개요 시트
+  const sheet = workbook.addWorksheet('개요');
+  sheet.getColumn(1).width = 16;
+  sheet.getColumn(2).width = 70;
+
+  const titleRow = sheet.addRow([pageName]);
+  titleRow.getCell(1).font = { bold: true, size: 16 };
+  sheet.addRow([]);
+
+  for (const token of tokens) {
+    if (token.type === 'heading') {
+      const text = cleanText(token.text);
+      const prefix = '#'.repeat(token.depth) + ' ';
+      const r = sheet.addRow([prefix + text]);
+      r.getCell(1).font = { bold: true, size: Math.max(10, 15 - token.depth * 2), color: { argb: 'FF1a1a2e' } };
+      sheet.mergeCells(`A${r.number}:B${r.number}`);
+    } else if (token.type === 'paragraph') {
+      const text = cleanText(token.text);
+      if (text) {
+        const r = sheet.addRow(['', text]);
+        r.getCell(2).alignment = { wrapText: true };
+      }
+    } else if (token.type === 'blockquote') {
+      const text = cleanText(getBlockquoteText(token));
+      if (text) {
+        const r = sheet.addRow(['💡', text]);
+        r.getCell(1).font = { bold: true };
+        r.getCell(2).alignment = { wrapText: true };
+        r.getCell(2).font = { italic: true, color: { argb: 'FF555555' } };
+      }
+    } else if (token.type === 'list') {
+      for (const item of token.items) {
+        const text = cleanText(item.text);
+        if (text) {
+          const r = sheet.addRow(['•', text]);
+          r.getCell(2).alignment = { wrapText: true };
+        }
+      }
+    } else if (token.type === 'space') {
+      sheet.addRow([]);
+    }
+  }
+
+  // 표 시트
+  let tableNum = 1;
+  for (const token of tokens) {
+    if (token.type !== 'table') continue;
+    const tSheet = workbook.addWorksheet(`표 ${tableNum++}`);
+    const headers = token.header.map(h => cleanText(h.text));
+    tSheet.columns = headers.map(() => ({ width: 22 }));
+    const hRow = tSheet.addRow(headers);
+    hRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+      cell.alignment = { wrapText: true };
+    });
+    for (const row of token.rows) {
+      const dataRow = tSheet.addRow(row.map(c => cleanText(c.text)));
+      dataRow.eachCell(cell => { cell.alignment = { wrapText: true }; });
+    }
+  }
+
+  return workbook.xlsx.writeBuffer();
+}
+
+async function generatePptx(pageName, tokens) {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.title = pageName;
+
+  const TITLE_COLOR = '1a1a2e';
+  const BODY_COLOR = '333333';
+  const ACCENT = '4a6fa5';
+
+  // 타이틀 슬라이드
+  const titleSlide = pptx.addSlide();
+  titleSlide.background = { color: '1a1a2e' };
+  titleSlide.addText('📚 MSCL 지식 위키', {
+    x: 0.5, y: 1.0, w: 12.33, h: 0.7,
+    fontSize: 20, color: '9999cc', align: 'center'
+  });
+  titleSlide.addText(pageName, {
+    x: 0.5, y: 1.9, w: 12.33, h: 1.8,
+    fontSize: 40, bold: true, color: 'ffffff', align: 'center', wrap: true
+  });
+
+  // takeaway 추출 (첫 blockquote)
+  const takeawayToken = tokens.find(t => t.type === 'blockquote');
+  if (takeawayToken) {
+    const takeaway = cleanText(getBlockquoteText(takeawayToken));
+    if (takeaway) {
+      titleSlide.addText(takeaway, {
+        x: 1, y: 3.8, w: 11.33, h: 2.0,
+        fontSize: 16, color: 'aaaadd', align: 'center', italic: true, wrap: true
+      });
+    }
+  }
+
+  // 섹션별 슬라이드
+  let currentSlide = null;
+  let contentRows = [];
+
+  function flushSlide(slide, rows) {
+    if (!slide || rows.length === 0) return;
+    // 표가 있으면 별도 처리
+    const tableData = rows.filter(r => r.type === 'table');
+    const textRows = rows.filter(r => r.type !== 'table');
+
+    if (textRows.length > 0) {
+      const textArr = textRows.map(r => ({
+        text: r.text + '\n',
+        options: { fontSize: r.fontSize || 14, bold: r.bold || false, bullet: r.bullet ? { type: 'bullet' } : false, color: r.color || BODY_COLOR, breakLine: false }
+      }));
+      slide.addText(textArr, { x: 0.5, y: 1.6, w: 12.33, h: 4.8, valign: 'top', wrap: true });
+    }
+
+    if (tableData.length > 0) {
+      // 테이블 슬라이드 추가
+      for (const td of tableData) {
+        const ts = pptx.addSlide();
+        ts.addText(td.title || '표', { x: 0.5, y: 0.2, w: 12.33, h: 0.9, fontSize: 22, bold: true, color: TITLE_COLOR });
+        const tbl = [];
+        tbl.push(td.headers.map(h => ({ text: h, options: { bold: true, fill: 'E0E7FF', color: TITLE_COLOR } })));
+        for (const row of td.rows) {
+          tbl.push(row.map(c => ({ text: c, options: { color: BODY_COLOR } })));
+        }
+        ts.addTable(tbl, {
+          x: 0.5, y: 1.3, w: 12.33,
+          border: { type: 'solid', pt: 0.5, color: 'dddddd' },
+          colW: td.headers.map(() => 12.33 / td.headers.length),
+          fontSize: 12,
+        });
+      }
+    }
+  }
+
+  let sectionTitle = '';
+  for (const token of tokens) {
+    if (token.type === 'heading' && token.depth <= 2) {
+      flushSlide(currentSlide, contentRows);
+      contentRows = [];
+      sectionTitle = cleanText(token.text);
+      currentSlide = pptx.addSlide();
+      currentSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.12, h: 7.5, fill: { color: ACCENT } });
+      currentSlide.addText(sectionTitle, {
+        x: 0.5, y: 0.25, w: 12.33, h: 1.1,
+        fontSize: 26, bold: true, color: TITLE_COLOR
+      });
+    } else if (token.type === 'heading' && token.depth >= 3) {
+      contentRows.push({ text: cleanText(token.text), bold: true, fontSize: 15, color: ACCENT });
+    } else if (token.type === 'paragraph') {
+      const text = cleanText(token.text);
+      if (text) contentRows.push({ text, fontSize: 13 });
+    } else if (token.type === 'blockquote') {
+      const text = cleanText(getBlockquoteText(token));
+      if (text) contentRows.push({ text: '💡 ' + text, fontSize: 12, color: '555555' });
+    } else if (token.type === 'list') {
+      for (const item of token.items) {
+        const text = cleanText(item.text);
+        if (text) contentRows.push({ text, bullet: true, fontSize: 13 });
+      }
+    } else if (token.type === 'table' && currentSlide) {
+      contentRows.push({
+        type: 'table',
+        title: sectionTitle,
+        headers: token.header.map(h => cleanText(h.text)),
+        rows: token.rows.map(row => row.map(c => cleanText(c.text)))
+      });
+    }
+  }
+  flushSlide(currentSlide, contentRows);
+
+  return pptx.write({ outputType: 'nodebuffer' });
+}
+// ─────────────────────────────────────────────────
+
 // 라우트
 app.get('/', (req, res) => {
   const sidebar = parseSidebar();
@@ -314,9 +587,44 @@ app.get('/raw/:filename', (req, res) => {
   res.download(filePath, filename);
 });
 
+app.get('/api/export/:page', async (req, res) => {
+  const pageName = decodeURIComponent(req.params.page);
+  const format = (req.query.format || 'docx').toLowerCase();
+  const filePath = path.join(WIKI_DIR, `${pageName}.md`);
+  if (!fs.existsSync(filePath)) return res.status(404).send('페이지 없음');
+
+  const markdown = fs.readFileSync(filePath, 'utf-8');
+  const tokens = marked.lexer(markdown);
+  const safeName = pageName.replace(/[/\\:*?"<>|]/g, '_');
+
+  try {
+    if (format === 'docx') {
+      const buf = await generateDocx(pageName, tokens);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}.docx`);
+      res.send(buf);
+    } else if (format === 'xlsx') {
+      const buf = await generateXlsx(pageName, tokens);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}.xlsx`);
+      res.send(buf);
+    } else if (format === 'pptx') {
+      const buf = await generatePptx(pageName, tokens);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}.pptx`);
+      res.send(buf);
+    } else {
+      res.status(400).send('지원하지 않는 형식입니다 (docx, xlsx, pptx)');
+    }
+  } catch (e) {
+    console.error('Export error:', e);
+    res.status(500).send('내보내기 실패: ' + e.message);
+  }
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
-    version: '2026-05-11-v5',
+    version: '2026-05-14-v6',
     hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
   });
