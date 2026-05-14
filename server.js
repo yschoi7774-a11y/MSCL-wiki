@@ -817,10 +817,8 @@ ${wikiContext}`,
   };
   const { gen, ct, ext } = fmtMeta[format];
   const buffer = await gen(structure);
-  const id = crypto.randomUUID();
   const filename = `${(structure.title || 'MSCL문서').replace(/[/\\:*?"<>|]/g, '_')}.${ext}`;
-  exportCache.set(id, { buffer, filename, ct, expires: Date.now() + 3600000 });
-  return { url: `/api/temp/${id}`, filename, format: ext, title: structure.title };
+  return { buffer, filename, ct, format: ext, title: structure.title };
 }
 // ─────────────────────────────────────────────────
 
@@ -869,13 +867,7 @@ app.get('/api/ask', async (req, res) => {
     }
 
     if (fileFormat) {
-      const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
-      const context = files.map(f => {
-        const name = f.replace('.md', '');
-        return `=== ${name} ===\n${fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8')}`;
-      }).join('\n\n');
-      const result = await aiGenerateFile(q, context, fileFormat);
-      if (result) return res.json({ type: 'download', ...result });
+      return res.json({ type: 'download', q, format: fileFormat });
     }
 
     const answer = await askAI(q);
@@ -925,6 +917,24 @@ app.get('/raw/:filename', (req, res) => {
   res.download(filePath, filename);
 });
 
+app.get('/api/ai-download', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  const format = (req.query.format || 'pptx').toLowerCase();
+  if (!q || !anthropic) return res.status(400).send('잘못된 요청');
+  try {
+    const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
+    const context = files.map(f => `=== ${f.replace('.md','')} ===\n${fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8')}`).join('\n\n');
+    const result = await aiGenerateFile(q, context, format);
+    if (!result) return res.status(500).send('파일 생성 실패');
+    res.setHeader('Content-Type', result.ct);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(result.filename)}`);
+    res.send(result.buffer);
+  } catch (e) {
+    console.error('ai-download error:', e);
+    res.status(500).send('오류: ' + e.message);
+  }
+});
+
 app.get('/api/temp/:id', (req, res) => {
   const entry = exportCache.get(req.params.id);
   if (!entry || entry.expires < Date.now()) return res.status(404).send('파일이 만료되었습니다 (1시간 유효)');
@@ -970,7 +980,7 @@ app.get('/api/export/:page', async (req, res) => {
 
 app.get('/api/status', (req, res) => {
   res.json({
-    version: '2026-05-14-v7',
+    version: '2026-05-14-v8',
     hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
   });

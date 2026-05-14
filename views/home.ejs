@@ -293,6 +293,31 @@
       document.getElementById('graph-legend').appendChild(div);
     });
 
+    // ── AI 파일 다운로드 ──
+    async function triggerAIDownload(q, format) {
+      const btn = document.getElementById('ai-dl-btn');
+      if (!btn) return;
+      btn.textContent = '⏳ 생성 중… (10~20초)';
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`/api/ai-download?q=${encodeURIComponent(q)}&format=${format}`);
+        if (!resp.ok) throw new Error(await resp.text());
+        const blob = await resp.blob();
+        const cd = resp.headers.get('content-disposition') || '';
+        const fnMatch = cd.match(/filename\*=UTF-8''(.+)/);
+        const filename = fnMatch ? decodeURIComponent(fnMatch[1]) : `MSCL문서.${format}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; document.body.appendChild(a);
+        a.click(); a.remove(); URL.revokeObjectURL(url);
+        btn.textContent = '✅ 다운로드 완료';
+      } catch (e) {
+        btn.textContent = '⚠ 실패 — 다시 클릭하세요';
+        btn.disabled = false;
+        console.error(e);
+      }
+    }
+
     // ── 탭 전환 ──
     let graphInited = false;
     let nodeSelection = null;
@@ -436,20 +461,22 @@
       if (aiRes && aiRes.type === 'download') {
         aiContent.className = '';
         const icons = { pptx: '📊', xlsx: '📗', docx: '📝' };
+        const fmtNames = { pptx: 'PowerPoint', xlsx: 'Excel', docx: 'Word' };
         const icon = icons[aiRes.format] || '📄';
+        const fmtName = fmtNames[aiRes.format] || aiRes.format.toUpperCase();
         aiContent.innerHTML = `
           <div style="display:flex;align-items:center;gap:16px;padding:8px 0">
             <span style="font-size:40px">${icon}</span>
             <div>
-              <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px">${aiRes.title}</div>
-              <div style="font-size:12px;color:#999;margin-bottom:12px">${aiRes.filename}</div>
-              <a href="${aiRes.url}" download="${aiRes.filename}"
-                 style="display:inline-block;padding:9px 22px;background:#1a1a2e;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">
-                ⬇ 다운로드
-              </a>
+              <div style="font-size:14px;color:#888;margin-bottom:4px">${fmtName} 파일 — AI가 위키 내용으로 생성합니다</div>
+              <button id="ai-dl-btn"
+                style="padding:10px 24px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
+                ⬇ 파일 생성 및 다운로드
+              </button>
             </div>
           </div>`;
         aiLangBtn.style.display = 'none';
+        document.getElementById('ai-dl-btn').addEventListener('click', () => triggerAIDownload(aiRes.q, aiRes.format));
       } else if (aiRes && aiRes.answer) {
         aiContent.className = '';
         koAnswer = aiRes.answer;
