@@ -970,7 +970,7 @@ app.get('/api/export/:page', async (req, res) => {
 
 app.get('/api/status', (req, res) => {
   res.json({
-    version: '2026-05-14-v6',
+    version: '2026-05-14-v7',
     hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
   });
