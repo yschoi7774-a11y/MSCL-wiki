@@ -516,89 +516,242 @@ async function generatePptx(pageName, tokens) {
 
   return pptx.write({ outputType: 'nodebuffer' });
 }
-// ── JSON 구조 → PPTX ──────────────────────────────
+// ── JSON 구조 → PPTX (리디자인) ───────────────────
 async function generatePptxFromJSON(s) {
   const pptx = new PptxGenJS();
-  pptx.layout = 'LAYOUT_WIDE';
+  pptx.layout = 'LAYOUT_WIDE'; // 13.33 × 7.5 in
   pptx.title = s.title || 'MSCL';
 
-  const ACCENT = '4a6fa5';
-  const DARK = '1a1a2e';
+  const C = {
+    navy:   '0f1729', navyMid: '1a1a2e', blue:  '4a6fa5',
+    blueLt: '6b93c4', gold:    'e8b86d', white: 'ffffff',
+    offWht: 'f8fafc', gray:    '64748b', grayLt:'e2e8f0',
+    dark:   '1e293b', mid:     '475569',
+  };
+  const W = 13.33, H = 7.5;
 
-  // 타이틀 슬라이드
+  function addFooter(sl, num) {
+    sl.addShape(pptx.ShapeType.rect, { x: 0, y: H - 0.36, w: W, h: 0.36, fill: { color: C.navyMid }, line: { color: C.navyMid } });
+    sl.addText('MOTHERSMILE', { x: 0.35, y: H - 0.3, w: 5, h: 0.24, fontSize: 8.5, color: C.blueLt, bold: false });
+    if (num) sl.addText(String(num), { x: W - 0.9, y: H - 0.3, w: 0.6, h: 0.24, fontSize: 8.5, color: C.blueLt, align: 'right' });
+  }
+
+  // ① 타이틀 슬라이드
   const ts = pptx.addSlide();
-  ts.background = { color: DARK };
-  ts.addText('📚 MSCL 지식 위키', { x: 0.5, y: 0.9, w: 12.33, h: 0.7, fontSize: 18, color: '9999cc', align: 'center' });
-  ts.addText(s.title || '', { x: 0.5, y: 1.8, w: 12.33, h: 2.0, fontSize: 38, bold: true, color: 'ffffff', align: 'center', wrap: true });
-  if (s.subtitle) ts.addText(s.subtitle, { x: 1, y: 4.0, w: 11.33, h: 0.9, fontSize: 17, color: 'aaaadd', align: 'center', italic: true, wrap: true });
+  ts.background = { color: C.navy };
+  // 왼쪽 세로 바
+  ts.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.55, h: H, fill: { color: C.blue }, line: { color: C.blue } });
+  // 오른쪽 장식 블록
+  ts.addShape(pptx.ShapeType.rect, { x: 11.2, y: 4.8, w: 2.13, h: 2.7, fill: { color: C.navyMid }, line: { color: C.navyMid } });
+  ts.addShape(pptx.ShapeType.rect, { x: 11.7, y: 4.4, w: 1.63, h: 3.1, fill: { color: C.blue },    line: { color: C.blue } });
+  // 브랜드
+  ts.addText('MOTHERSMILE  지식 위키', { x: 0.85, y: 0.5, w: 9, h: 0.45, fontSize: 10.5, color: C.blueLt, charSpacing: 2.5 });
+  // 구분선
+  ts.addShape(pptx.ShapeType.rect, { x: 0.85, y: 1.08, w: 9.5, h: 0.04, fill: { color: C.blue }, line: { color: C.blue } });
+  // 메인 타이틀
+  ts.addText(s.title || '', { x: 0.85, y: 1.25, w: 10.5, h: 3.2, fontSize: 42, bold: true, color: C.white, wrap: true, valign: 'middle' });
+  // 부제목
+  if (s.subtitle) ts.addText(s.subtitle, { x: 0.85, y: 4.6, w: 9.5, h: 0.9, fontSize: 16, color: C.blueLt, italic: true, wrap: true });
+  // 날짜
+  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  ts.addText(today, { x: 0.85, y: H - 0.75, w: 6, h: 0.35, fontSize: 10, color: C.gray });
 
+  // ② 콘텐츠 슬라이드
+  let num = 0;
   for (const slide of (s.slides || [])) {
-    const sl = pptx.addSlide();
-    sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.12, h: 7.5, fill: { color: ACCENT } });
-    sl.addText(slide.heading || '', { x: 0.5, y: 0.25, w: 12.33, h: 1.1, fontSize: 26, bold: true, color: DARK });
+    num++;
+    const type = slide.type || (slide.table ? 'table' : slide.bullets ? 'bullets' : 'section');
 
-    if (slide.table) {
-      const tbl = [];
-      tbl.push(slide.table.headers.map(h => ({ text: h, options: { bold: true, fill: 'E0E7FF', color: DARK } })));
-      for (const row of (slide.table.rows || [])) {
-        tbl.push(row.map(c => ({ text: String(c), options: { color: '333333' } })));
+    if (type === 'section') {
+      // 섹션 구분 슬라이드
+      const sl = pptx.addSlide();
+      sl.background = { color: C.navyMid };
+      sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.55, h: H, fill: { color: C.gold }, line: { color: C.gold } });
+      sl.addShape(pptx.ShapeType.rect, { x: 0.55, y: H * 0.5 - 0.03, w: W - 0.55, h: 0.05, fill: { color: C.blue }, line: { color: C.blue } });
+      sl.addText(String(num).padStart(2, '0'), { x: 1.1, y: 1.6, w: 3.5, h: 1.4, fontSize: 64, bold: true, color: C.blue });
+      sl.addText(slide.heading || '', { x: 1.1, y: 3.1, w: 10.8, h: 2.5, fontSize: 32, bold: true, color: C.white, wrap: true });
+
+    } else if (type === 'table') {
+      // 표 슬라이드
+      const sl = pptx.addSlide();
+      sl.background = { color: C.offWht };
+      sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: 1.45, fill: { color: C.navyMid }, line: { color: C.navyMid } });
+      sl.addText(slide.heading || '', { x: 0.5, y: 0.22, w: 12.3, h: 1.0, fontSize: 22, bold: true, color: C.white });
+      if (slide.table) {
+        const hdrs = slide.table.headers || [];
+        const tbl = [];
+        tbl.push(hdrs.map(h => ({ text: h, options: { bold: true, color: C.white, fill: C.blue, align: 'center', valign: 'middle', fontSize: 12 } })));
+        (slide.table.rows || []).forEach((row, i) => {
+          tbl.push(row.map(c => ({ text: String(c), options: { color: C.dark, fill: i % 2 === 0 ? C.white : 'eef2ff', fontSize: 11.5, valign: 'middle' } })));
+        });
+        const colW = hdrs.map(() => +(12.33 / hdrs.length).toFixed(2));
+        sl.addTable(tbl, { x: 0.5, y: 1.6, w: 12.33, rowH: 0.44, border: { type: 'solid', pt: 0.4, color: C.grayLt }, colW });
       }
-      const colW = slide.table.headers.map(() => +(12.33 / slide.table.headers.length).toFixed(2));
-      sl.addTable(tbl, { x: 0.5, y: 1.5, w: 12.33, border: { type: 'solid', pt: 0.5, color: 'dddddd' }, colW, fontSize: 13 });
-    } else if (slide.bullets && slide.bullets.length) {
-      const textArr = slide.bullets.map(b => ({ text: b + '\n', options: { bullet: { type: 'bullet' }, fontSize: 14, color: '333333' } }));
-      sl.addText(textArr, { x: 0.5, y: 1.6, w: 12.33, h: 5.5, valign: 'top', wrap: true });
+      addFooter(sl, num);
+
+    } else {
+      // 불릿 슬라이드
+      const sl = pptx.addSlide();
+      sl.background = { color: C.white };
+      // 상단 컬러 바
+      sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: 0.07, fill: { color: C.blue }, line: { color: C.blue } });
+      // 제목 배경
+      sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0.07, w: W, h: 1.32, fill: { color: C.offWht }, line: { color: C.offWht } });
+      // 제목 왼쪽 강조 바
+      sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0.07, w: 0.18, h: 1.32, fill: { color: C.blue }, line: { color: C.blue } });
+      sl.addText(slide.heading || '', { x: 0.42, y: 0.17, w: 12.5, h: 1.1, fontSize: 23, bold: true, color: C.navyMid });
+      // 구분선
+      sl.addShape(pptx.ShapeType.rect, { x: 0.42, y: 1.42, w: 12.5, h: 0.03, fill: { color: C.grayLt }, line: { color: C.grayLt } });
+      // 불릿
+      if (slide.bullets && slide.bullets.length) {
+        const textArr = slide.bullets.map(b => ({
+          text: b,
+          options: { bullet: { code: '25B8', color: C.blue }, fontSize: 14.5, color: C.dark, paraSpaceAfter: 8, breakLine: true }
+        }));
+        sl.addText(textArr, { x: 0.5, y: 1.58, w: 12.33, h: 5.5, valign: 'top', wrap: true, lineSpacingMultiple: 1.35 });
+      }
+      addFooter(sl, num);
     }
   }
   return pptx.write({ outputType: 'nodebuffer' });
 }
 
-// ── JSON 구조 → XLSX ──────────────────────────────
+// ── JSON 구조 → XLSX (리디자인) ───────────────────
 async function generateXlsxFromJSON(s) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'MSCL 지식 위키';
+  workbook.created = new Date();
+
   for (const sheet of (s.sheets || [])) {
     const ws = workbook.addWorksheet(sheet.name || '시트');
-    ws.columns = (sheet.headers || []).map(h => ({ header: h, key: h, width: 22 }));
-    const hRow = ws.getRow(1);
-    hRow.eachCell(cell => {
-      cell.font = { bold: true };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
-      cell.alignment = { wrapText: true };
+    const headers = sheet.headers || [];
+
+    // 1행: 타이틀
+    ws.mergeCells(1, 1, 1, headers.length || 1);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = s.title || sheet.name || 'MSCL';
+    titleCell.font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0f1729' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 32;
+
+    // 2행: 빈 행
+    ws.addRow([]);
+
+    // 3행: 헤더
+    const hRow = ws.addRow(headers);
+    hRow.height = 22;
+    hRow.eachCell((cell, col) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a1a2e' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = { bottom: { style: 'medium', color: { argb: 'FF4a6fa5' } } };
     });
-    for (const row of (sheet.rows || [])) {
-      const r = ws.addRow(row);
-      r.eachCell(cell => { cell.alignment = { wrapText: true }; });
-    }
+
+    // 데이터 행
+    (sheet.rows || []).forEach((row, i) => {
+      const dataRow = ws.addRow(row);
+      dataRow.height = 18;
+      const isAlt = i % 2 === 1;
+      dataRow.eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? 'FFf0f4ff' : 'FFffffff' } };
+        cell.alignment = { wrapText: true, vertical: 'middle' };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFe2e8f0' } },
+          left:   { style: 'thin', color: { argb: 'FFe2e8f0' } },
+          right:  { style: 'thin', color: { argb: 'FFe2e8f0' } },
+        };
+      });
+    });
+
+    // 열 너비 자동 조정 (최소 14, 최대 40)
+    ws.columns = headers.map((h, i) => ({
+      key: String(i),
+      width: Math.min(40, Math.max(14, String(h).length + 6))
+    }));
+
+    // 헤더 행 고정
+    ws.views = [{ state: 'frozen', ySplit: 3 }];
+    // 자동 필터
+    if (headers.length) ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: headers.length } };
   }
   return workbook.xlsx.writeBuffer();
 }
 
-// ── JSON 구조 → DOCX ──────────────────────────────
+// ── JSON 구조 → DOCX (리디자인) ──────────────────
 async function generateDocxFromJSON(s) {
+  const { BorderStyle } = require('docx');
   const children = [];
-  if (s.title) children.push(new Paragraph({ text: s.title, heading: HeadingLevel.HEADING_1 }));
+
+  // 커버 타이틀
+  if (s.title) {
+    children.push(new Paragraph({
+      children: [new TextRun({ text: s.title, bold: true, size: 56, color: '0f1729' })],
+      spacing: { before: 400, after: 200 },
+    }));
+    children.push(new Paragraph({
+      children: [new TextRun({ text: '─'.repeat(40), color: '4a6fa5', size: 16 })],
+      spacing: { before: 0, after: 600 },
+    }));
+  }
+
   for (const section of (s.sections || [])) {
-    if (section.heading) children.push(new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_2 }));
-    for (const p of (section.paragraphs || [])) if (p) children.push(new Paragraph({ text: p }));
-    for (const b of (section.bullets || [])) if (b) children.push(new Paragraph({ text: b, bullet: { level: 0 } }));
-    if (section.table) {
+    if (section.heading) {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: section.heading, bold: true, size: 30, color: '1a1a2e' })],
+        spacing: { before: 480, after: 120 },
+        border: { bottom: { color: '4a6fa5', space: 4, style: BorderStyle.SINGLE, size: 6 } }
+      }));
+    }
+    for (const p of (section.paragraphs || [])) {
+      if (p) children.push(new Paragraph({
+        children: [new TextRun({ text: p, size: 22, color: '1e293b' })],
+        spacing: { before: 80, after: 80 }
+      }));
+    }
+    for (const b of (section.bullets || [])) {
+      if (b) children.push(new Paragraph({
+        children: [new TextRun({ text: b, size: 22, color: '1e293b' })],
+        bullet: { level: 0 },
+        spacing: { before: 40, after: 40 }
+      }));
+    }
+    if (section.table && section.table.headers) {
       const rows = [];
       rows.push(new TableRow({
         tableHeader: true,
         children: section.table.headers.map(h => new TableCell({
-          shading: { type: ShadingType.SOLID, color: 'E0E7FF' },
-          children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })]
+          shading: { type: ShadingType.SOLID, color: '1a1a2e' },
+          margins: { top: 80, bottom: 80, left: 100, right: 100 },
+          children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'ffffff', size: 20 })] })]
         }))
       }));
-      for (const row of (section.table.rows || [])) {
-        rows.push(new TableRow({ children: row.map(c => new TableCell({ children: [new Paragraph({ text: String(c) })] })) }));
-      }
-      children.push(new Table({ rows, width: { size: 9000, type: WidthType.DXA } }));
-      children.push(new Paragraph({}));
+      (section.table.rows || []).forEach((row, i) => {
+        rows.push(new TableRow({
+          children: row.map(c => new TableCell({
+            shading: { type: ShadingType.SOLID, color: i % 2 === 0 ? 'ffffff' : 'eef2ff' },
+            margins: { top: 60, bottom: 60, left: 100, right: 100 },
+            children: [new Paragraph({ children: [new TextRun({ text: String(c), size: 20, color: '1e293b' })] })]
+          }))
+        }));
+      });
+      children.push(new Table({
+        rows,
+        width: { size: 9000, type: WidthType.DXA },
+      }));
+      children.push(new Paragraph({ spacing: { before: 160 } }));
     }
   }
-  const doc = new Document({ sections: [{ properties: {}, children }] });
+
+  const doc = new Document({
+    styles: {
+      default: { document: { run: { font: 'Malgun Gothic', size: 22 } } }
+    },
+    sections: [{
+      properties: { page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 } } },
+      children
+    }]
+  });
   return Packer.toBuffer(doc);
 }
 
@@ -606,26 +759,56 @@ async function generateDocxFromJSON(s) {
 async function aiGenerateFile(question, wikiContext, format) {
   if (!anthropic) return null;
 
-  const fmtPrompts = {
-    pptx: `JSON 형식 (다른 텍스트 없이 JSON만):
-{"title":"발표 제목","subtitle":"부제목(선택)","slides":[{"heading":"슬라이드 제목","bullets":["내용1","내용2"]},{"heading":"표 슬라이드","table":{"headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}}]}`,
-    xlsx: `JSON 형식 (다른 텍스트 없이 JSON만):
-{"title":"문서 제목","sheets":[{"name":"시트명","headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}]}`,
-    docx: `JSON 형식 (다른 텍스트 없이 JSON만):
-{"title":"문서 제목","sections":[{"heading":"섹션 제목","paragraphs":["단락"],"bullets":["항목1","항목2"]},{"heading":"표 섹션","table":{"headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}}]}`
+  const fmtSchemas = {
+    pptx: `슬라이드 타입: "section"(챕터 구분), "bullets"(목록), "table"(표)
+JSON만 반환:
+{"title":"발표 제목","subtitle":"부제목(선택)","slides":[
+  {"type":"section","heading":"챕터명"},
+  {"type":"bullets","heading":"슬라이드 제목","bullets":["핵심 내용을 문장으로","수치 포함 구체적으로","항목당 1-2줄 권장"]},
+  {"type":"table","heading":"슬라이드 제목","table":{"headers":["컬럼1","컬럼2","컬럼3"],"rows":[["값1","값2","값3"]]}}
+]}`,
+    xlsx: `JSON만 반환:
+{"title":"문서 제목","sheets":[{"name":"시트명","headers":["컬럼1","컬럼2","컬럼3"],"rows":[["값1","값2","값3"]]}]}`,
+    docx: `JSON만 반환:
+{"title":"문서 제목","sections":[
+  {"heading":"섹션 제목","paragraphs":["단락 내용"],"bullets":["항목1","항목2"]},
+  {"heading":"표 섹션","table":{"headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}}
+]}`
   };
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4096,
-    system: `위키 내용을 바탕으로 사용자 요청에 맞는 파일 구조를 JSON으로만 반환하세요. JSON 외 다른 텍스트는 절대 출력하지 마세요.\n\n${fmtPrompts[format]}\n\n위키:\n${wikiContext}`,
-    messages: [{ role: 'user', content: question }]
-  });
+  const msg = await anthropic.messages.create(
+    {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: [{
+        type: 'text',
+        text: `마더스마일 지식 위키 기반으로 사용자 요청에 맞는 파일 구조를 JSON으로만 반환하세요.
+JSON 외 어떤 텍스트도 출력하지 마세요. 내용은 구체적이고 실무에 바로 쓸 수 있게 작성하세요.
+
+${fmtSchemas[format]}
+
+위키 내용:
+${wikiContext}`,
+        cache_control: { type: 'ephemeral' }
+      }],
+      messages: [{ role: 'user', content: question }]
+    },
+    { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } }
+  );
 
   const text = msg.content[0].text.trim();
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return null;
-  const structure = JSON.parse(jsonMatch[0]);
+  let structure;
+  try {
+    structure = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    // JSON 일부 정제 후 재시도
+    const cleaned = jsonMatch[0]
+      .replace(/[\u0000-\u001F\u007F]/g, ' ')  // 제어문자 제거
+      .replace(/,\s*([}\]])/g, '$1');           // trailing comma 제거
+    try { structure = JSON.parse(cleaned); } catch { return null; }
+  }
 
   const fmtMeta = {
     pptx: { gen: generatePptxFromJSON, ct: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: 'pptx' },
