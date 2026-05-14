@@ -40,7 +40,7 @@
     }
     .search-hint { font-size: 11px; color: #ccc; margin-top: 8px; }
 
-    /* ── AI 답변 섹션 ── */
+    /* ── AI 대화 섹션 ── */
     #ai-section {
       display: none;
       max-width: 780px;
@@ -50,57 +50,60 @@
     #ai-section .section-label {
       font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
       text-transform: uppercase; color: #6a8fd8; margin-bottom: 10px;
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; justify-content: space-between;
     }
+    #ai-clear-btn {
+      font-size: 11px; font-weight: 500; color: #bbb; background: none;
+      border: 1px solid #e8e8e8; border-radius: 6px; padding: 3px 9px;
+      cursor: pointer; letter-spacing: 0;
+    }
+    #ai-clear-btn:hover { color: #e53935; border-color: #e53935; }
     #ai-box {
       background: #fff;
       border: 1px solid #e0e0e0;
       border-radius: 14px;
-      padding: 24px 28px;
+      padding: 8px 0;
       color: #222;
       box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      max-height: 520px;
+      overflow-y: auto;
     }
-    #ai-question {
-      font-size: 14px; color: #888; margin-bottom: 14px;
-      padding-bottom: 12px; border-bottom: 1px solid #eee;
+    /* 채팅 말풍선 */
+    .chat-turn { padding: 16px 24px; }
+    .chat-turn + .chat-turn { border-top: 1px solid #f3f3f3; }
+    .chat-q {
+      font-size: 13px; font-weight: 700; color: #fff;
+      background: #1a1a2e; border-radius: 10px 10px 10px 2px;
+      display: inline-block; padding: 8px 14px; margin-bottom: 12px;
+      max-width: 90%; line-height: 1.5;
     }
-    #ai-question span { color: #1a1a2e; font-weight: 600; }
-    #ai-answer-content {
-      font-size: 16px; line-height: 1.85; color: #222;
-      min-height: 40px;
+    .chat-a {
+      font-size: 15px; line-height: 1.85; color: #222;
     }
-    #ai-answer-content.loading {
-      color: #bbb; font-style: italic; animation: pulse 1.4s ease-in-out infinite;
+    .chat-a p { margin-bottom: 8px; }
+    .chat-a p:last-child { margin-bottom: 0; }
+    .chat-a table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    .chat-a th { background: #1a1a2e; color: #fff; padding: 8px 12px; text-align: left; font-weight: 600; }
+    .chat-a td { padding: 7px 12px; border-bottom: 1px solid #eee; }
+    .chat-a tr:nth-child(even) td { background: #f8fafc; }
+    .chat-a ul, .chat-a ol { padding-left: 20px; margin: 8px 0; }
+    .chat-a li { margin-bottom: 4px; }
+    .chat-a strong { color: #1a1a2e; }
+    .chat-a code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    .chat-a a { color: #4a6fa5; }
+    .chat-loading {
+      padding: 16px 24px; color: #bbb; font-style: italic; font-size: 14px;
+      animation: pulse 1.4s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
-    #ai-answer-content p { margin-bottom: 8px; }
-    #ai-answer-content p:last-child { margin-bottom: 0; }
-    #ai-answer-content table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
-    #ai-answer-content th { background: #1a1a2e; color: #fff; padding: 8px 12px; text-align: left; font-weight: 600; }
-    #ai-answer-content td { padding: 7px 12px; border-bottom: 1px solid #eee; }
-    #ai-answer-content tr:nth-child(even) td { background: #f8fafc; }
-    #ai-answer-content ul, #ai-answer-content ol { padding-left: 20px; margin: 8px 0; }
-    #ai-answer-content li { margin-bottom: 4px; }
-    #ai-answer-content strong { color: #1a1a2e; }
-    #ai-answer-content code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
     #ai-refs {
       display: none;
-      margin-top: 16px; padding-top: 12px;
-      border-top: 1px solid #eee;
+      padding: 10px 24px 14px;
+      border-top: 1px solid #f0f0f0;
       font-size: 12px; color: #aaa;
     }
     #ai-refs a { color: #4a6fa5; text-decoration: none; margin-right: 10px; }
     #ai-refs a:hover { text-decoration: underline; }
-    #ai-lang-btn {
-      position: absolute; top: 16px; right: 20px;
-      padding: 4px 10px; font-size: 12px; font-weight: 600;
-      border: 1.5px solid #ddd; border-radius: 6px;
-      background: #fff; color: #555; cursor: pointer;
-      transition: all 0.15s;
-    }
-    #ai-lang-btn:hover { border-color: #4a6fa5; color: #4a6fa5; background: #f0f4ff; }
-    #ai-lang-btn.loading { opacity: 0.5; cursor: wait; }
-    #ai-box { position: relative; }
 
     /* ── 키워드 검색 결과 ── */
     #search-section {
@@ -216,13 +219,14 @@
 
   </div>
 
-  <!-- ① AI 답변 섹션 -->
+  <!-- ① AI 대화 섹션 -->
   <div id="ai-section">
-    <div class="section-label">✦ AI 답변</div>
+    <div class="section-label">
+      <span>✦ AI 대화</span>
+      <button id="ai-clear-btn" onclick="clearChat()">대화 초기화</button>
+    </div>
     <div id="ai-box">
-      <button id="ai-lang-btn" style="display:none" onclick="toggleLang()">日本語</button>
-      <div id="ai-question">Q. <span id="ai-q-text"></span></div>
-      <div id="ai-answer-content" class="loading">답변 생성 중…</div>
+      <div id="ai-chat-log"></div>
       <div id="ai-refs"></div>
     </div>
   </div>
@@ -353,46 +357,45 @@
     switchTab(initTab);
 
     // ── 검색 ──
-    const searchInput  = document.getElementById('live-search');
-    const aiSection    = document.getElementById('ai-section');
-    const aiQText      = document.getElementById('ai-q-text');
-    const aiContent    = document.getElementById('ai-answer-content');
-    const aiRefs       = document.getElementById('ai-refs');
-    const aiLangBtn    = document.getElementById('ai-lang-btn');
+    const searchInput   = document.getElementById('live-search');
+    const aiSection     = document.getElementById('ai-section');
+    const aiChatLog     = document.getElementById('ai-chat-log');
+    const aiRefs        = document.getElementById('ai-refs');
     const searchSection = document.getElementById('search-section');
+    const resultsList   = document.getElementById('search-results-list');
+    const noResults     = document.getElementById('no-results');
 
-    let koAnswer = '';   // 한국어 원문
-    let jaAnswer = '';   // 일본어 캐시
-    let currentLang = 'ko';
-
-    async function toggleLang() {
-      if (aiLangBtn.classList.contains('loading')) return;
-      if (currentLang === 'ko') {
-        if (!jaAnswer) {
-          aiLangBtn.classList.add('loading');
-          aiLangBtn.textContent = '번역 중…';
-          const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: koAnswer }) }).then(r => r.json()).catch(() => null);
-          aiLangBtn.classList.remove('loading');
-          if (res && res.result) {
-            jaAnswer = res.result;
-          } else {
-            aiLangBtn.textContent = '日本語';
-            return;
-          }
-        }
-        aiContent.innerHTML = marked.parse(jaAnswer);
-        aiLangBtn.textContent = '한국어';
-        currentLang = 'ja';
-      } else {
-        aiContent.innerHTML = marked.parse(koAnswer);
-        aiLangBtn.textContent = '日本語';
-        currentLang = 'ko';
-      }
-    }
-    const resultsList  = document.getElementById('search-results-list');
-    const noResults    = document.getElementById('no-results');
+    let conversationLog = []; // { q, answer } 클라이언트 표시용
     let searchTimer;
     let currentQ = '';
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderChat(loadingQ) {
+      let html = conversationLog.map(item => `
+        <div class="chat-turn">
+          <div class="chat-q">${escHtml(item.q)}</div>
+          <div class="chat-a">${marked.parse(item.answer)}</div>
+        </div>`).join('');
+      if (loadingQ) {
+        html += `<div class="chat-turn">
+          <div class="chat-q">${escHtml(loadingQ)}</div>
+          <div class="chat-loading">답변 생성 중…</div>
+        </div>`;
+      }
+      aiChatLog.innerHTML = html;
+      aiChatLog.closest('#ai-box').scrollTop = 99999;
+    }
+
+    async function clearChat() {
+      conversationLog = [];
+      aiChatLog.innerHTML = '';
+      aiRefs.style.display = 'none';
+      aiSection.style.display = 'none';
+      await fetch('/api/chat/clear', { method: 'POST' }).catch(() => {});
+    }
 
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimer);
@@ -436,15 +439,10 @@
       applyCardDim(q);
       applyNodeDim(q);
 
-      // AI 섹션
-      koAnswer = ''; jaAnswer = ''; currentLang = 'ko';
-      aiLangBtn.style.display = 'none';
-      aiLangBtn.textContent = '日本語';
+      // AI 섹션 — 로딩 상태
       aiSection.style.display = 'block';
-      aiQText.textContent = q;
-      aiContent.className = 'loading';
-      aiContent.innerHTML = '답변 생성 중…';
       aiRefs.style.display = 'none';
+      renderChat(q);
 
       // 키워드 섹션
       searchSection.style.display = 'block';
@@ -457,35 +455,31 @@
       ]);
       if (q !== currentQ) return;
 
-      // AI 답변 렌더링
+      // AI 답변 처리
       if (aiRes && aiRes.type === 'download') {
-        aiContent.className = '';
         const icons = { pptx: '📊', xlsx: '📗', docx: '📝' };
         const fmtNames = { pptx: 'PowerPoint', xlsx: 'Excel', docx: 'Word' };
         const icon = icons[aiRes.format] || '📄';
         const fmtName = fmtNames[aiRes.format] || aiRes.format.toUpperCase();
-        aiContent.innerHTML = `
-          <div style="display:flex;align-items:center;gap:16px;padding:8px 0">
-            <span style="font-size:40px">${icon}</span>
-            <div>
-              <div style="font-size:14px;color:#888;margin-bottom:4px">${fmtName} 파일 — AI가 위키 내용으로 생성합니다</div>
-              <button id="ai-dl-btn"
-                style="padding:10px 24px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
-                ⬇ 파일 생성 및 다운로드
-              </button>
-            </div>
-          </div>`;
-        aiLangBtn.style.display = 'none';
+        const dlHtml = `<div style="display:flex;align-items:center;gap:14px;padding:4px 0">
+          <span style="font-size:34px">${icon}</span>
+          <div>
+            <div style="font-size:13px;color:#888;margin-bottom:6px">${fmtName} 파일 — AI가 위키 내용으로 생성합니다</div>
+            <button id="ai-dl-btn" style="padding:9px 22px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+              ⬇ 파일 생성 및 다운로드
+            </button>
+          </div>
+        </div>`;
+        conversationLog.push({ q, answer: dlHtml, isDl: true, dlQ: aiRes.q, dlFmt: aiRes.format });
+        renderChat(null);
         document.getElementById('ai-dl-btn').addEventListener('click', () => triggerAIDownload(aiRes.q, aiRes.format));
+
       } else if (aiRes && aiRes.answer) {
-        aiContent.className = '';
-        koAnswer = aiRes.answer;
-        aiContent.innerHTML = marked.parse(aiRes.answer);
-        aiLangBtn.style.display = 'block';
+        conversationLog.push({ q, answer: aiRes.answer });
+        renderChat(null);
+        // 참조 링크
         if (kwResults.length > 0) {
-          const pageLinks = kwResults.map(r =>
-            `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`
-          ).join('');
+          const pageLinks = kwResults.map(r => `<a href="/wiki/${encodeURIComponent(r.name)}">${r.name}</a>`).join('');
           const seenFiles = new Set();
           const dlLinks = kwResults.flatMap(r => r.downloads || [])
             .filter(d => { if (seenFiles.has(d.file)) return false; seenFiles.add(d.file); return true; })
@@ -495,11 +489,11 @@
           aiRefs.style.display = 'block';
         }
       } else if (aiRes && aiRes.noKey) {
-        aiContent.className = '';
-        aiContent.innerHTML = '<span style="color:#445577;font-size:13px">⚙️ Render 환경변수에 <code>ANTHROPIC_API_KEY</code>를 설정하면 AI 답변이 활성화됩니다.</span>';
+        conversationLog.push({ q, answer: '⚙️ `ANTHROPIC_API_KEY` 환경변수를 설정하면 AI 답변이 활성화됩니다.' });
+        renderChat(null);
       } else {
-        aiContent.className = '';
-        aiContent.innerHTML = '<span style="color:#445577">AI 답변을 가져올 수 없습니다.</span>';
+        conversationLog.push({ q, answer: 'AI 답변을 가져올 수 없습니다.' });
+        renderChat(null);
       }
 
       renderKeywordResults(kwResults);

@@ -41,7 +41,8 @@ app.post('/login', (req, res) => {
     res.send(LOGIN_HTML.replace('__ERR__', '<p class="err">아이디 또는 비밀번호가 틀렸습니다.</p>'));
   }
 });
-app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); })
+app.post('/api/chat/clear', (req, res) => { req.session.chatHistory = []; res.json({ ok: true }); });;
 
 app.use(requireAuth);
 // ─────────────────────────────────────────────────
@@ -207,17 +208,14 @@ function search(query) {
     .sort((a, b) => b.score - a.score);
 }
 
-// AI 질문 답변
-async function askAI(question) {
-  if (!anthropic) return null;
-  const files = fs.readdirSync(WIKI_DIR)
-    .filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
-  const context = files.map(f => {
-    const name = f.replace('.md', '');
-    const content = fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8');
-    return `=== ${name} ===\n${content}`;
-  }).join('\n\n');
+// AI 질문 답변 (대화 이력 포함)
+function buildWikiContext() {
+  const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
+  return files.map(f => `=== ${f.replace('.md', '')} ===\n${fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8')}`).join('\n\n');
+}
 
+async function askAI(messages) {
+  if (!anthropic) return null;
   const msg = await anthropic.messages.create(
     {
       model: 'claude-haiku-4-5-20251001',
@@ -229,12 +227,13 @@ async function askAI(question) {
 아래 위키 내용만을 근거로 답변하세요.
 위키에 없는 내용은 "위키에 해당 정보가 없습니다"라고 답하세요.
 답변은 간결하고 구체적으로, 수치가 있으면 반드시 포함하세요.
+이전 대화 맥락을 반영해 자연스럽게 이어서 답변하세요.
 
 위키 내용:
-${context}`,
+${buildWikiContext()}`,
         cache_control: { type: 'ephemeral' }
       }],
-      messages: [{ role: 'user', content: `질문: ${question}` }]
+      messages
     },
     { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } }
   );
@@ -872,7 +871,14 @@ app.get('/api/ask', async (req, res) => {
       return res.json({ type: 'download', q, format: fileFormat });
     }
 
-    const answer = await askAI(q);
+    // 세션 대화 이력 관리 (최대 10턴 = 20 메시지)
+    if (!req.session.chatHistory) req.session.chatHistory = [];
+    req.session.chatHistory.push({ role: 'user', content: q });
+    if (req.session.chatHistory.length > 20) req.session.chatHistory = req.session.chatHistory.slice(-20);
+
+    const answer = await askAI(req.session.chatHistory);
+    req.session.chatHistory.push({ role: 'assistant', content: answer });
+
     res.json({ answer });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -982,7 +988,7 @@ app.get('/api/export/:page', async (req, res) => {
 
 app.get('/api/status', (req, res) => {
   res.json({
-    version: '2026-05-14-v9',
+    version: '2026-05-14-v10',
     hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
   });
