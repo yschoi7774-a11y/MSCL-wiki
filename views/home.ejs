@@ -408,7 +408,6 @@
     // 키워드 검색만 (입력 중 실시간)
     async function doKeywordSearch(q) {
       if (!q) {
-        aiSection.style.display = 'none';
         searchSection.style.display = 'none';
         resetDim();
         return;
@@ -430,7 +429,6 @@
     // 키워드 + AI 답변 (엔터 시)
     async function doFullSearch(q) {
       if (!q) {
-        aiSection.style.display = 'none';
         searchSection.style.display = 'none';
         resetDim();
         return;
