@@ -1,4 +1,5 @@
 require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -239,6 +240,13 @@ ${context}`,
   );
   return msg.content[0].text;
 }
+
+// ── AI 파일 생성 캐시 (1시간 TTL) ─────────────────
+const exportCache = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, e] of exportCache) if (e.expires < now) exportCache.delete(id);
+}, 3600000);
 
 // ── 내보내기 유틸 ──────────────────────────────────
 function cleanText(text) {
@@ -508,6 +516,129 @@ async function generatePptx(pageName, tokens) {
 
   return pptx.write({ outputType: 'nodebuffer' });
 }
+// ── JSON 구조 → PPTX ──────────────────────────────
+async function generatePptxFromJSON(s) {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.title = s.title || 'MSCL';
+
+  const ACCENT = '4a6fa5';
+  const DARK = '1a1a2e';
+
+  // 타이틀 슬라이드
+  const ts = pptx.addSlide();
+  ts.background = { color: DARK };
+  ts.addText('📚 MSCL 지식 위키', { x: 0.5, y: 0.9, w: 12.33, h: 0.7, fontSize: 18, color: '9999cc', align: 'center' });
+  ts.addText(s.title || '', { x: 0.5, y: 1.8, w: 12.33, h: 2.0, fontSize: 38, bold: true, color: 'ffffff', align: 'center', wrap: true });
+  if (s.subtitle) ts.addText(s.subtitle, { x: 1, y: 4.0, w: 11.33, h: 0.9, fontSize: 17, color: 'aaaadd', align: 'center', italic: true, wrap: true });
+
+  for (const slide of (s.slides || [])) {
+    const sl = pptx.addSlide();
+    sl.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.12, h: 7.5, fill: { color: ACCENT } });
+    sl.addText(slide.heading || '', { x: 0.5, y: 0.25, w: 12.33, h: 1.1, fontSize: 26, bold: true, color: DARK });
+
+    if (slide.table) {
+      const tbl = [];
+      tbl.push(slide.table.headers.map(h => ({ text: h, options: { bold: true, fill: 'E0E7FF', color: DARK } })));
+      for (const row of (slide.table.rows || [])) {
+        tbl.push(row.map(c => ({ text: String(c), options: { color: '333333' } })));
+      }
+      const colW = slide.table.headers.map(() => +(12.33 / slide.table.headers.length).toFixed(2));
+      sl.addTable(tbl, { x: 0.5, y: 1.5, w: 12.33, border: { type: 'solid', pt: 0.5, color: 'dddddd' }, colW, fontSize: 13 });
+    } else if (slide.bullets && slide.bullets.length) {
+      const textArr = slide.bullets.map(b => ({ text: b + '\n', options: { bullet: { type: 'bullet' }, fontSize: 14, color: '333333' } }));
+      sl.addText(textArr, { x: 0.5, y: 1.6, w: 12.33, h: 5.5, valign: 'top', wrap: true });
+    }
+  }
+  return pptx.write({ outputType: 'nodebuffer' });
+}
+
+// ── JSON 구조 → XLSX ──────────────────────────────
+async function generateXlsxFromJSON(s) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'MSCL 지식 위키';
+  for (const sheet of (s.sheets || [])) {
+    const ws = workbook.addWorksheet(sheet.name || '시트');
+    ws.columns = (sheet.headers || []).map(h => ({ header: h, key: h, width: 22 }));
+    const hRow = ws.getRow(1);
+    hRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+      cell.alignment = { wrapText: true };
+    });
+    for (const row of (sheet.rows || [])) {
+      const r = ws.addRow(row);
+      r.eachCell(cell => { cell.alignment = { wrapText: true }; });
+    }
+  }
+  return workbook.xlsx.writeBuffer();
+}
+
+// ── JSON 구조 → DOCX ──────────────────────────────
+async function generateDocxFromJSON(s) {
+  const children = [];
+  if (s.title) children.push(new Paragraph({ text: s.title, heading: HeadingLevel.HEADING_1 }));
+  for (const section of (s.sections || [])) {
+    if (section.heading) children.push(new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_2 }));
+    for (const p of (section.paragraphs || [])) if (p) children.push(new Paragraph({ text: p }));
+    for (const b of (section.bullets || [])) if (b) children.push(new Paragraph({ text: b, bullet: { level: 0 } }));
+    if (section.table) {
+      const rows = [];
+      rows.push(new TableRow({
+        tableHeader: true,
+        children: section.table.headers.map(h => new TableCell({
+          shading: { type: ShadingType.SOLID, color: 'E0E7FF' },
+          children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })]
+        }))
+      }));
+      for (const row of (section.table.rows || [])) {
+        rows.push(new TableRow({ children: row.map(c => new TableCell({ children: [new Paragraph({ text: String(c) })] })) }));
+      }
+      children.push(new Table({ rows, width: { size: 9000, type: WidthType.DXA } }));
+      children.push(new Paragraph({}));
+    }
+  }
+  const doc = new Document({ sections: [{ properties: {}, children }] });
+  return Packer.toBuffer(doc);
+}
+
+// ── AI 파일 생성 ──────────────────────────────────
+async function aiGenerateFile(question, wikiContext, format) {
+  if (!anthropic) return null;
+
+  const fmtPrompts = {
+    pptx: `JSON 형식 (다른 텍스트 없이 JSON만):
+{"title":"발표 제목","subtitle":"부제목(선택)","slides":[{"heading":"슬라이드 제목","bullets":["내용1","내용2"]},{"heading":"표 슬라이드","table":{"headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}}]}`,
+    xlsx: `JSON 형식 (다른 텍스트 없이 JSON만):
+{"title":"문서 제목","sheets":[{"name":"시트명","headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}]}`,
+    docx: `JSON 형식 (다른 텍스트 없이 JSON만):
+{"title":"문서 제목","sections":[{"heading":"섹션 제목","paragraphs":["단락"],"bullets":["항목1","항목2"]},{"heading":"표 섹션","table":{"headers":["컬럼1","컬럼2"],"rows":[["값1","값2"]]}}]}`
+  };
+
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4096,
+    system: `위키 내용을 바탕으로 사용자 요청에 맞는 파일 구조를 JSON으로만 반환하세요. JSON 외 다른 텍스트는 절대 출력하지 마세요.\n\n${fmtPrompts[format]}\n\n위키:\n${wikiContext}`,
+    messages: [{ role: 'user', content: question }]
+  });
+
+  const text = msg.content[0].text.trim();
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  const structure = JSON.parse(jsonMatch[0]);
+
+  const fmtMeta = {
+    pptx: { gen: generatePptxFromJSON, ct: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: 'pptx' },
+    xlsx: { gen: generateXlsxFromJSON, ct: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx' },
+    docx: { gen: generateDocxFromJSON, ct: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' }
+  };
+  const { gen, ct, ext } = fmtMeta[format];
+  const buffer = await gen(structure);
+  const id = crypto.randomUUID();
+  const filename = `${(structure.title || 'MSCL문서').replace(/[/\\:*?"<>|]/g, '_')}.${ext}`;
+  exportCache.set(id, { buffer, filename, ct, expires: Date.now() + 3600000 });
+  return { url: `/api/temp/${id}`, filename, format: ext, title: structure.title };
+}
 // ─────────────────────────────────────────────────
 
 // 라우트
@@ -541,6 +672,29 @@ app.get('/api/ask', async (req, res) => {
   if (!q) return res.json({ answer: null });
   if (!anthropic) return res.json({ answer: null, noKey: true });
   try {
+    // 파일 생성 요청 감지
+    const MAKE_RE = /만들|작성|생성|뽑아|정리|export/i;
+    const PPT_RE  = /ppt|pptx|파워포인트|슬라이드|발표|프레젠테이션/i;
+    const XLSX_RE = /엑셀|excel|xlsx|스프레드시트/i;
+    const DOCX_RE = /워드|word|docx/i;
+
+    let fileFormat = null;
+    if (MAKE_RE.test(q)) {
+      if (PPT_RE.test(q))  fileFormat = 'pptx';
+      else if (XLSX_RE.test(q)) fileFormat = 'xlsx';
+      else if (DOCX_RE.test(q)) fileFormat = 'docx';
+    }
+
+    if (fileFormat) {
+      const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md') && f !== 'log.md' && f !== 'index.md');
+      const context = files.map(f => {
+        const name = f.replace('.md', '');
+        return `=== ${name} ===\n${fs.readFileSync(path.join(WIKI_DIR, f), 'utf-8')}`;
+      }).join('\n\n');
+      const result = await aiGenerateFile(q, context, fileFormat);
+      if (result) return res.json({ type: 'download', ...result });
+    }
+
     const answer = await askAI(q);
     res.json({ answer });
   } catch (e) {
@@ -586,6 +740,14 @@ app.get('/raw/:filename', (req, res) => {
   const filePath = path.join(__dirname, 'raw', filename);
   if (!fs.existsSync(filePath)) return res.status(404).send('파일 없음');
   res.download(filePath, filename);
+});
+
+app.get('/api/temp/:id', (req, res) => {
+  const entry = exportCache.get(req.params.id);
+  if (!entry || entry.expires < Date.now()) return res.status(404).send('파일이 만료되었습니다 (1시간 유효)');
+  res.setHeader('Content-Type', entry.ct);
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(entry.filename)}`);
+  res.send(entry.buffer);
 });
 
 app.get('/api/export/:page', async (req, res) => {

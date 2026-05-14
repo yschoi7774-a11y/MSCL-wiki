@@ -433,7 +433,24 @@
       if (q !== currentQ) return;
 
       // AI 답변 렌더링
-      if (aiRes && aiRes.answer) {
+      if (aiRes && aiRes.type === 'download') {
+        aiContent.className = '';
+        const icons = { pptx: '📊', xlsx: '📗', docx: '📝' };
+        const icon = icons[aiRes.format] || '📄';
+        aiContent.innerHTML = `
+          <div style="display:flex;align-items:center;gap:16px;padding:8px 0">
+            <span style="font-size:40px">${icon}</span>
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px">${aiRes.title}</div>
+              <div style="font-size:12px;color:#999;margin-bottom:12px">${aiRes.filename}</div>
+              <a href="${aiRes.url}" download="${aiRes.filename}"
+                 style="display:inline-block;padding:9px 22px;background:#1a1a2e;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">
+                ⬇ 다운로드
+              </a>
+            </div>
+          </div>`;
+        aiLangBtn.style.display = 'none';
+      } else if (aiRes && aiRes.answer) {
         aiContent.className = '';
         koAnswer = aiRes.answer;
         aiContent.innerHTML = marked.parse(aiRes.answer);
