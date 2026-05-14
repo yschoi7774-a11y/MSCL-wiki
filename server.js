@@ -855,15 +855,17 @@ app.get('/api/ask', async (req, res) => {
   try {
     // 파일 생성 요청 감지
     const MAKE_RE = /만들|작성|생성|뽑아|정리|export/i;
+    const FORM_RE = /양식|서식|템플릿|template|대장|신청서|보고서|체크리스트|명세서|계획서|지침서|매뉴얼/i;
     const PPT_RE  = /ppt|pptx|파워포인트|슬라이드|발표|프레젠테이션/i;
     const XLSX_RE = /엑셀|excel|xlsx|스프레드시트/i;
     const DOCX_RE = /워드|word|docx/i;
 
     let fileFormat = null;
-    if (MAKE_RE.test(q)) {
-      if (PPT_RE.test(q))  fileFormat = 'pptx';
+    if (MAKE_RE.test(q) || FORM_RE.test(q)) {
+      if (PPT_RE.test(q))       fileFormat = 'pptx';
       else if (XLSX_RE.test(q)) fileFormat = 'xlsx';
       else if (DOCX_RE.test(q)) fileFormat = 'docx';
+      else if (FORM_RE.test(q)) fileFormat = 'xlsx'; // 양식/서식은 기본 Excel
     }
 
     if (fileFormat) {
@@ -980,7 +982,7 @@ app.get('/api/export/:page', async (req, res) => {
 
 app.get('/api/status', (req, res) => {
   res.json({
-    version: '2026-05-14-v8',
+    version: '2026-05-14-v9',
     hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     wikiPages: fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md')).length
   });
